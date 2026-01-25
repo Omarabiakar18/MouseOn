@@ -1,0 +1,159 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "About MouseOn" : {
+      "comment" : "Menu item to show about window"
+    },
+    "Accent color" : {
+      "comment" : "Label for accent color picker"
+    },
+    "Animation follows your cursor movement" : {
+      "comment" : "Help text for cursor highlight feature"
+    },
+    "Auto-hide" : {
+      "comment" : "Settings section header for auto-hide feature"
+    },
+    "Built-in" : {
+      "comment" : "Badge label for built-in display"
+    },
+    "Close" : {
+      "comment" : "Button to close a window"
+    },
+    "Collect pointer-time stats" : {
+      "comment" : "Toggle label for statistics collection"
+    },
+    "Configure per-display colors in the Displays tab" : {
+      "comment" : "Help text when single accent color is disabled"
+    },
+    "Connected Displays" : {
+      "comment" : "Menu item and window title for displays debug view"
+    },
+    "Debug Info" : {
+      "comment" : "Section header in debug view"
+    },
+    "Display colors" : {
+      "comment" : "Settings section header for color options"
+    },
+    "Displayed characters" : {
+      "comment" : "Label for max name length setting"
+    },
+    "Enable keyboard shortcut" : {
+      "comment" : "Toggle label for hotkey feature"
+    },
+    "Find My Cursor" : {
+      "comment" : "Feature name and menu item"
+    },
+    "Hide after" : {
+      "comment" : "Label before auto-hide duration stepper"
+    },
+    "Hide menu bar item after inactivity" : {
+      "comment" : "Toggle label for auto-hide feature"
+    },
+    "Highlight color" : {
+      "comment" : "Label for cursor highlight color picker"
+    },
+    "iPad (via Universal Control)" : {
+      "comment" : "Label for Universal Control display entry"
+    },
+    "Launch MouseOn at login" : {
+      "comment" : "Toggle label for launch at login feature"
+    },
+    "Main" : {
+      "comment" : "Badge label for main display"
+    },
+    "Menu bar opacity" : {
+      "comment" : "Settings section header for opacity control"
+    },
+    "MIRRORED" : {
+      "comment" : "Badge label for mirrored display"
+    },
+    "Move your mouse between displays to start tracking" : {
+      "comment" : "Help text when stats are empty"
+    },
+    "No data yet" : {
+      "comment" : "Placeholder when stats are empty"
+    },
+    "No displays found" : {
+      "comment" : "Message when no displays are detected"
+    },
+    "Open Emoji Picker" : {
+      "comment" : "Button tooltip for emoji picker"
+    },
+    "Open Settings" : {
+      "comment" : "Button to open system settings"
+    },
+    "Pointer Time per Display" : {
+      "comment" : "Stats view title"
+    },
+    "Quit" : {
+      "comment" : "Menu item to quit the app"
+    },
+    "Refresh" : {
+      "comment" : "Button to refresh display list"
+    },
+    "Reset" : {
+      "comment" : "Button to reset statistics"
+    },
+    "Reset Statistics?" : {
+      "comment" : "Alert title for reset confirmation"
+    },
+    "seconds" : {
+      "comment" : "Unit label for auto-hide duration"
+    },
+    "Settings" : {
+      "comment" : "Menu item and window title"
+    },
+    "Shortcut:" : {
+      "comment" : "Label before hotkey display"
+    },
+    "Sidecar?" : {
+      "comment" : "Badge label for possible Sidecar display"
+    },
+    "Startup" : {
+      "comment" : "Settings section header for startup options"
+    },
+    "Statistics" : {
+      "comment" : "Settings section header and menu item"
+    },
+    "Stats" : {
+      "comment" : "Menu item for stats window"
+    },
+    "The menu bar item will reappear when you move your mouse" : {
+      "comment" : "Help text for auto-hide feature"
+    },
+    "This will permanently delete all tracked display time." : {
+      "comment" : "Alert message for reset confirmation"
+    },
+    "Total display switches:" : {
+      "comment" : "Label before switch count in stats"
+    },
+    "Universal Control" : {
+      "comment" : "Section header for Universal Control settings"
+    },
+    "Universal Control Active - Cursor on iPad" : {
+      "comment" : "Status message when cursor is on iPad"
+    },
+    "Use single accent color for all displays" : {
+      "comment" : "Toggle label for single accent color mode"
+    },
+    "Version %@ (%@)" : {
+      "comment" : "Version string format in about window",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "(Option + Command + F)" : {
+      "comment" : "Hotkey description"
+    },
+    "⌥⌘F" : {
+      "comment" : "Hotkey symbols",
+      "shouldTranslate" : false
+    }
+  },
+  "version" : "1.0"
+}

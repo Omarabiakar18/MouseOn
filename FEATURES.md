@@ -24,6 +24,7 @@ A macOS menu bar utility that shows which display your mouse pointer is currentl
 - **Find My Cursor** - Animated highlight to locate your cursor instantly
 - **Usage Statistics** - Track time spent on each display and total switches
 - **Auto-hide** - Optionally hide the menu bar item after inactivity
+- **Launch at Login** - Start MouseOn automatically when you log in
 
 ### Display Information
 
@@ -37,13 +38,13 @@ A macOS menu bar utility that shows which display your mouse pointer is currentl
 
 ### Productivity
 
-- [ ] **Keyboard Shortcut for Find My Cursor** - Global hotkey (e.g., ⌥⇧F) to trigger cursor highlight
+- [x] **Keyboard Shortcut for Find My Cursor** - Global hotkey ⌥⌘F (Option+Command+F) to trigger cursor highlight
 - [ ] **Display Switch Notifications** - Optional notification when switching displays
 - [ ] **Quick Display Switcher** - Menu to quickly move cursor to a specific display
 
 ### Customization
 
-- [ ] **Custom Highlight Colors** - Choose color for Find My Cursor animation
+- [x] **Custom Highlight Colors** - Choose color for Find My Cursor animation
 - [ ] **Icon Mode** - Show display icon instead of/alongside text
 - [ ] **Font Selection** - Custom font for menu bar display name
 
