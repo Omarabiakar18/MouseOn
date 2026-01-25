@@ -70,7 +70,7 @@ struct MouseOnApp: App {
             Divider()
             
             Button("Find My Cursor") {
-                CursorHighlighter.shared.highlight()
+                CursorHighlighter.shared.highlight(color: settings.getHighlightNSColor())
             }
 
             Divider()
@@ -80,6 +80,7 @@ struct MouseOnApp: App {
                 .foregroundColor(currentDisplayColor)
                 .onAppear {
                     tracker.inject(settings: settings, stats: stats)
+                    HotkeyManager.shared.setup(settings: settings)
                 }
         }
         .menuBarExtraStyle(.window)
@@ -89,7 +90,7 @@ struct MouseOnApp: App {
                 .environmentObject(settings)
                 .environmentObject(tracker)
         }
-        .defaultSize(width: 420, height: 320)
+        .defaultSize(width: 450, height: 420)
 
         WindowGroup(id: "stats") {
             StatsView()
@@ -110,7 +111,7 @@ struct MouseOnApp: App {
 final class SettingsStore: ObservableObject {
     struct FeatureToggles: Codable {
         var showDataBox        = true
-        var autoHideEnabled    = true
+        var autoHideEnabled    = false
         var statsEnabled       = true
     }
 
@@ -120,6 +121,16 @@ final class SettingsStore: ObservableObject {
     @Published var aliases: [String: String] = [:] // screenUUID ➜ custom name
     @Published var maxNameLength: Int = 15   // 5…30
     @Published var displayColors: [String: String] = [:] // screenUUID ➜ hex color
+    
+    // Single accent color mode
+    @Published var useSingleAccentColor: Bool = false
+    @Published var singleAccentColor: String = "#007AFF"  // Default blue
+    
+    // Cursor highlight color
+    @Published var highlightColor: String = "#FF9500"  // Default orange
+    
+    // Find My Cursor hotkey enabled
+    @Published var findCursorHotkeyEnabled: Bool = true
 
     init() {
         load()
@@ -144,6 +155,22 @@ final class SettingsStore: ObservableObject {
         if let colorData = defaults.dictionary(forKey: "displayColors") as? [String: String] {
             displayColors = colorData
         }
+        
+        // Load single accent color settings
+        useSingleAccentColor = defaults.bool(forKey: "useSingleAccentColor")
+        if let storedAccent = defaults.string(forKey: "singleAccentColor"), !storedAccent.isEmpty {
+            singleAccentColor = storedAccent
+        }
+        
+        // Load highlight color
+        if let storedHighlight = defaults.string(forKey: "highlightColor"), !storedHighlight.isEmpty {
+            highlightColor = storedHighlight
+        }
+        
+        // Load hotkey setting (defaults to true)
+        if defaults.object(forKey: "findCursorHotkeyEnabled") != nil {
+            findCursorHotkeyEnabled = defaults.bool(forKey: "findCursorHotkeyEnabled")
+        }
     }
 
     func save() {
@@ -156,12 +183,27 @@ final class SettingsStore: ObservableObject {
         defaults.set(aliases, forKey: "aliases")
         defaults.set(maxNameLength, forKey: "maxNameLength")
         defaults.set(displayColors, forKey: "displayColors")
+        defaults.set(useSingleAccentColor, forKey: "useSingleAccentColor")
+        defaults.set(singleAccentColor, forKey: "singleAccentColor")
+        defaults.set(highlightColor, forKey: "highlightColor")
+        defaults.set(findCursorHotkeyEnabled, forKey: "findCursorHotkeyEnabled")
     }
     
-    /// Get Color for a display ID, returns nil if not set
+    /// Get Color for a display ID, returns single accent if enabled, or per-display color
     func colorForDisplay(_ displayID: String) -> Color? {
+        if useSingleAccentColor {
+            return Color(hex: singleAccentColor) ?? .accentColor
+        }
         guard let hex = displayColors[displayID] else { return nil }
         return Color(hex: hex)
+    }
+    
+    /// Get the highlight color as NSColor
+    func getHighlightNSColor() -> NSColor {
+        if let color = Color(hex: highlightColor) {
+            return NSColor(color)
+        }
+        return .systemOrange
     }
 }
 
@@ -701,14 +743,15 @@ final class CursorHighlighter {
     private var animationTimer: Timer?
     private var animationPhase: CGFloat = 0
     private var dismissWorkItem: DispatchWorkItem?
+    private let windowSize: CGFloat = 200
     
     private init() {}
     
-    func highlight() {
+    func highlight(color: NSColor = .systemOrange) {
         // Ensure we're on main thread
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
-                self?.highlight()
+                self?.highlight(color: color)
             }
             return
         }
@@ -720,7 +763,6 @@ final class CursorHighlighter {
         let mouseLocation = NSEvent.mouseLocation
         
         // Create overlay window
-        let windowSize: CGFloat = 200
         let windowRect = NSRect(
             x: mouseLocation.x - windowSize / 2,
             y: mouseLocation.y - windowSize / 2,
@@ -742,32 +784,43 @@ final class CursorHighlighter {
         window.isReleasedWhenClosed = false  // Prevent premature deallocation
         
         let highlightView = CursorHighlightView(frame: NSRect(origin: .zero, size: windowRect.size))
+        highlightView.highlightColor = color
         window.contentView = highlightView
         
         window.orderFrontRegardless()
         overlayWindow = window
         
-        // Animate
+        // Animate and follow cursor
         animationPhase = 0
         animationTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] timer in
             guard let self = self, let window = self.overlayWindow else {
                 timer.invalidate()
                 return
             }
+            
+            // Update animation phase
             self.animationPhase += 0.05
             if let view = window.contentView as? CursorHighlightView {
                 view.phase = self.animationPhase
                 view.needsDisplay = true
             }
+            
+            // Follow the cursor
+            let currentLocation = NSEvent.mouseLocation
+            let newOrigin = NSPoint(
+                x: currentLocation.x - self.windowSize / 2,
+                y: currentLocation.y - self.windowSize / 2
+            )
+            window.setFrameOrigin(newOrigin)
         }
         
-        // Auto-dismiss after 1.5 seconds
+        // Auto-dismiss after 2 seconds (slightly longer since it follows)
         dismissWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             self?.dismiss()
         }
         dismissWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: workItem)
     }
     
     private func dismiss() {
@@ -791,9 +844,68 @@ final class CursorHighlighter {
     }
 }
 
+// MARK: - Global Hotkey Manager
+
+final class HotkeyManager {
+    static let shared = HotkeyManager()
+    
+    private var globalMonitor: Any?
+    private var localMonitor: Any?
+    private weak var settings: SettingsStore?
+    
+    private init() {}
+    
+    func setup(settings: SettingsStore) {
+        self.settings = settings
+        
+        // Remove existing monitors
+        if let monitor = globalMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        
+        // Monitor for ⌥⌘F (Option + Command + F) globally
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyEvent(event)
+        }
+        
+        // Also monitor locally when our windows are focused
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyEvent(event)
+            return event
+        }
+    }
+    
+    private func handleKeyEvent(_ event: NSEvent) {
+        guard settings?.findCursorHotkeyEnabled == true else { return }
+        
+        // Check for ⌥⌘F (Option + Command + F)
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let isOptionCommand = modifiers == [.option, .command]
+        let isF = event.charactersIgnoringModifiers?.lowercased() == "f"
+        
+        if isOptionCommand && isF {
+            let color = settings?.getHighlightNSColor() ?? .systemOrange
+            CursorHighlighter.shared.highlight(color: color)
+        }
+    }
+    
+    deinit {
+        if let monitor = globalMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
+}
+
 // Custom view for drawing animated circles
 final class CursorHighlightView: NSView {
     var phase: CGFloat = 0
+    var highlightColor: NSColor = .systemOrange
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -810,14 +922,14 @@ final class CursorHighlightView: NSView {
             let radius = maxRadius * progress
             let alpha = 1.0 - progress
             
-            context.setStrokeColor(NSColor.systemOrange.withAlphaComponent(alpha * 0.8).cgColor)
+            context.setStrokeColor(highlightColor.withAlphaComponent(alpha * 0.8).cgColor)
             context.setLineWidth(3.0)
             context.addArc(center: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: false)
             context.strokePath()
         }
         
         // Draw center dot
-        context.setFillColor(NSColor.systemOrange.cgColor)
+        context.setFillColor(highlightColor.cgColor)
         context.addArc(center: center, radius: 8, startAngle: 0, endAngle: .pi * 2, clockwise: false)
         context.fillPath()
     }
@@ -907,13 +1019,97 @@ struct SettingsView: View {
     struct AppearanceTab: View {
         @EnvironmentObject var settings: SettingsStore
         var body: some View {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Display name length
                 HStack {
                     Text("Displayed characters")
                     Stepper(value: $settings.maxNameLength, in: 5...30) {
                         Text("\(settings.maxNameLength)")
                     }
                 }
+                
+                Divider()
+                
+                // Opacity control
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Menu bar opacity")
+                        .font(.headline)
+                    HStack {
+                        Slider(value: $settings.opacity, in: 0.30...1.0, step: 0.05)
+                        Text("\(Int(settings.opacity * 100))%")
+                            .monospacedDigit()
+                            .frame(width: 40)
+                    }
+                }
+                
+                Divider()
+                
+                // Color mode
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Display colors")
+                        .font(.headline)
+                    
+                    Toggle("Use single accent color for all displays", isOn: $settings.useSingleAccentColor)
+                    
+                    if settings.useSingleAccentColor {
+                        HStack {
+                            Text("Accent color")
+                            Spacer()
+                            ColorPicker("", selection: Binding(
+                                get: { Color(hex: settings.singleAccentColor) ?? .accentColor },
+                                set: { settings.singleAccentColor = $0.toHex() ?? "#007AFF" }
+                            ))
+                            .labelsHidden()
+                        }
+                        .padding(.leading, 20)
+                    } else {
+                        Text("Configure per-display colors in the Displays tab")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 20)
+                    }
+                }
+                
+                Divider()
+                
+                // Find My Cursor
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Find My Cursor")
+                        .font(.headline)
+                    
+                    HStack {
+                        Text("Highlight color")
+                        Spacer()
+                        ColorPicker("", selection: Binding(
+                            get: { Color(hex: settings.highlightColor) ?? .orange },
+                            set: { settings.highlightColor = $0.toHex() ?? "#FF9500" }
+                        ))
+                        .labelsHidden()
+                    }
+                    
+                    Toggle("Enable keyboard shortcut", isOn: $settings.findCursorHotkeyEnabled)
+                    
+                    HStack(spacing: 4) {
+                        Text("Shortcut:")
+                            .foregroundColor(.secondary)
+                        Text("⌥⌘F")
+                            .font(.system(.body, design: .rounded).bold())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(4)
+                        Text("(Option + Command + F)")
+                            .foregroundColor(.secondary)
+                    }
+                    .font(.caption)
+                    .padding(.leading, 20)
+                    
+                    Text("Animation follows your cursor movement")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 20)
+                }
+                
                 Spacer()
             }
             .onDisappear { settings.save() }
@@ -923,8 +1119,39 @@ struct SettingsView: View {
     struct BehaviorTab: View {
         @EnvironmentObject var settings: SettingsStore
         var body: some View {
-            VStack(alignment: .leading) {
-                Toggle("Collect pointer‑time stats", isOn: $settings.features.statsEnabled)
+            VStack(alignment: .leading, spacing: 16) {
+                // Statistics
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Statistics")
+                        .font(.headline)
+                    Toggle("Collect pointer-time stats", isOn: $settings.features.statsEnabled)
+                }
+                
+                Divider()
+                
+                // Auto-hide
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Auto-hide")
+                        .font(.headline)
+                    
+                    Toggle("Hide menu bar item after inactivity", isOn: $settings.features.autoHideEnabled)
+                    
+                    if settings.features.autoHideEnabled {
+                        HStack {
+                            Text("Hide after")
+                            Stepper(value: $settings.autoHideSeconds, in: 5...300, step: 5) {
+                                Text("\(settings.autoHideSeconds) seconds")
+                            }
+                        }
+                        .padding(.leading, 20)
+                        
+                        Text("The menu bar item will reappear when you move your mouse")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 20)
+                    }
+                }
+                
                 Spacer()
             }
             .onDisappear { settings.save() }
