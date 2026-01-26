@@ -12,6 +12,19 @@ import os.log
 
 private let logger = Logger(subsystem: "com.mouseon.app", category: "StatsManager")
 
+// MARK: - Persisted Stats Data
+
+/// Container for persisted statistics data
+private struct PersistedStats: Codable {
+    var displayTimes: [String: TimeInterval]
+    var totalSwitches: Int
+    
+    init(displayTimes: [String: TimeInterval] = [:], totalSwitches: Int = 0) {
+        self.displayTimes = displayTimes
+        self.totalSwitches = totalSwitches
+    }
+}
+
 // MARK: - Stats Manager
 
 /// Tracks time spent on each display and switch counts
@@ -143,10 +156,21 @@ final class StatsManager: ObservableObject {
         
         do {
             let fileData = try Data(contentsOf: statsURL)
-            let loadedData = try JSONDecoder().decode([String: TimeInterval].self, from: fileData)
-            internalData = loadedData
-            data = loadedData
-            logger.info("Loaded stats with \(loadedData.count) displays tracked")
+            
+            // Try loading new format first
+            if let persistedStats = try? JSONDecoder().decode(PersistedStats.self, from: fileData) {
+                internalData = persistedStats.displayTimes
+                internalSwitches = persistedStats.totalSwitches
+                data = persistedStats.displayTimes
+                totalSwitches = persistedStats.totalSwitches
+                logger.info("Loaded stats: \(persistedStats.displayTimes.count) displays, \(persistedStats.totalSwitches) switches")
+            } else {
+                // Fall back to legacy format (just the dictionary)
+                let loadedData = try JSONDecoder().decode([String: TimeInterval].self, from: fileData)
+                internalData = loadedData
+                data = loadedData
+                logger.info("Loaded legacy stats with \(loadedData.count) displays tracked")
+            }
         } catch {
             logger.error("Failed to load stats: \(error.localizedDescription)")
         }
@@ -155,9 +179,13 @@ final class StatsManager: ObservableObject {
     /// Internal save method - must be called from queue
     nonisolated private func saveInternal() {
         do {
-            let encodedData = try JSONEncoder().encode(internalData)
+            let persistedStats = PersistedStats(
+                displayTimes: internalData,
+                totalSwitches: internalSwitches
+            )
+            let encodedData = try JSONEncoder().encode(persistedStats)
             try encodedData.write(to: statsURL, options: .atomic)
-            logger.debug("Stats saved to disk")
+            logger.debug("Stats saved to disk (switches: \(self.internalSwitches))")
         } catch {
             logger.error("Failed to save stats: \(error.localizedDescription)")
         }

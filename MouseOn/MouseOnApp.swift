@@ -90,6 +90,7 @@ struct MouseOnApp: App {
         } label: {
             Text(truncatedName)
                 .foregroundColor(currentDisplayColor)
+                .opacity(dependencies.settings.opacity)
                 .onAppear {
                     logger.debug("Menu bar item appeared")
                 }

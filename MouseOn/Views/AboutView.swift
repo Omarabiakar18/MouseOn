@@ -102,7 +102,7 @@ struct AboutView: View {
     
     private var linksSection: some View {
         VStack(spacing: 8) {
-            if let url = URL(string: "https://github.com/mouseon/mouseon") {
+            if let url = URL(string: "https://github.com/Omarabiakar18/MouseOn") {
                 Link(destination: url) {
                     Label("View on GitHub", systemImage: "link")
                         .font(.callout)
