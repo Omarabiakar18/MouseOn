@@ -36,11 +36,11 @@ A macOS menu bar utility that shows which display your mouse pointer is currentl
 
 | Issue | Severity | Status |
 |-------|----------|--------|
-| Opacity not applied to menu bar | Medium | TODO |
+| ~~Opacity not applied to menu bar~~ | Medium | ✅ FIXED |
 | Auto-hide timer not implemented | Medium | TODO |
-| totalSwitches not persisted | Medium | TODO |
-| Wrong GitHub URL in About | Low | TODO |
-| Unused showDataBox toggle | Low | TODO |
+| ~~totalSwitches not persisted~~ | Medium | ✅ FIXED |
+| ~~Wrong GitHub URL in About~~ | Low | ✅ FIXED |
+| Unused showDataBox toggle | Low | Can remove later |
 
 ---
 
