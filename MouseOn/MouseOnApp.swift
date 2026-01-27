@@ -36,38 +36,38 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "App")
 /// - Usage statistics tracking
 @main
 struct MouseOnApp: App {
-    
+
     // MARK: - Dependencies
-    
+
     /// Central dependency container managing all services
     @StateObject private var dependencies = AppDependencies()
-    
+
     // MARK: - Environment
-    
+
     @Environment(\.openWindow) private var openWindow
-    
+
     // MARK: - Initialization
-    
+
     init() {
         // Hide Dock icon, run as background-only app
         NSApplication.shared.setActivationPolicy(.accessory)
-        
+
         logger.info("MouseOn app initialized")
-        
+
         // Note: Stats flushing is handled in the Quit button action and
         // by the StatsManager using queue.sync in flush() to ensure
         // data is saved before the app terminates.
     }
-    
+
     // MARK: - Computed Properties
-    
+
     /// Current screen name clipped to the user-selected length
     private var truncatedName: String {
         let raw = dependencies.tracker.currentName.isEmpty ? "-" : dependencies.tracker.currentName
         let limit = dependencies.settings.maxNameLength
         return raw.count > limit ? String(raw.prefix(limit)) + "…" : raw
     }
-    
+
     /// Color for the current display (if set)
     private var currentDisplayColor: Color {
         let displayKey: String
@@ -80,9 +80,9 @@ struct MouseOnApp: App {
         }
         return dependencies.settings.colorForDisplay(displayKey) ?? .primary
     }
-    
+
     // MARK: - Body
-    
+
     var body: some Scene {
         // Menu Bar Extra
         MenuBarExtra {
@@ -96,7 +96,7 @@ struct MouseOnApp: App {
                 }
         }
         .menuBarExtraStyle(.window)
-        
+
         // Settings Window
         WindowGroup(id: "settings") {
             SettingsView()
@@ -105,30 +105,30 @@ struct MouseOnApp: App {
                 .environmentObject(dependencies.launchAtLogin)
         }
         .defaultSize(width: 450, height: 480)
-        
+
         // Stats Window
         WindowGroup(id: "stats") {
             StatsView()
                 .environmentObject(dependencies.stats)
         }
         .defaultSize(width: 480, height: 300)
-        
+
         // Debug Window
         WindowGroup(id: "displays-debug") {
             DisplaysDebugView()
                 .environmentObject(dependencies.tracker)
         }
         .defaultSize(width: 550, height: 450)
-        
+
         // About Window
         WindowGroup(id: "about") {
             AboutView()
         }
         .windowResizability(.contentSize)
     }
-    
+
     // MARK: - Menu Content
-    
+
     @ViewBuilder
     private var menuContent: some View {
         Button("Settings") {
@@ -137,21 +137,21 @@ struct MouseOnApp: App {
         }
         .keyboardShortcut(",", modifiers: .command)
         .accessibilityIdentifier("settingsButton")
-        
+
         Button("Stats") {
             openWindow(id: "stats")
             NSApp.activate(ignoringOtherApps: true)
         }
         .accessibilityIdentifier("statsButton")
-        
+
         Button("Connected Displays") {
             openWindow(id: "displays-debug")
             NSApp.activate(ignoringOtherApps: true)
         }
         .accessibilityIdentifier("displaysButton")
-        
+
         Divider()
-        
+
         Button("Find My Cursor") {
             CursorHighlighter.shared.highlight(
                 color: dependencies.settings.getHighlightNSColor()
@@ -159,9 +159,9 @@ struct MouseOnApp: App {
         }
         .keyboardShortcut("f", modifiers: [.option, .command])
         .accessibilityIdentifier("findCursorButton")
-        
+
         Divider()
-        
+
         // Power state indicator (when on battery)
         if dependencies.powerMonitor.isOnBattery {
             HStack {
@@ -169,16 +169,16 @@ struct MouseOnApp: App {
                 Text("Power Saving Mode")
             }
             .foregroundColor(.secondary)
-            
+
             Divider()
         }
-        
+
         Button("About MouseOn") {
             openWindow(id: "about")
             NSApp.activate(ignoringOtherApps: true)
         }
         .accessibilityIdentifier("aboutButton")
-        
+
         Button("Quit") {
             logger.info("User initiated quit")
             dependencies.stats.flush()
@@ -197,11 +197,11 @@ struct MouseOnApp_Previews: PreviewProvider {
         VStack(spacing: 20) {
             Text("MouseOn Menu Bar Utility")
                 .font(.headline)
-            
+
             Text("A macOS utility that shows which display your mouse pointer is on.")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
-            
+
             HStack(spacing: 12) {
                 Image(systemName: "display.2")
                 Image(systemName: "arrow.right")
@@ -211,9 +211,9 @@ struct MouseOnApp_Previews: PreviewProvider {
                     .background(Color.blue.opacity(0.2))
                     .cornerRadius(4)
             }
-            
+
             Divider()
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 FeatureRow(icon: "display.2", title: "Multi-Display", description: "Track cursor across all displays")
                 FeatureRow(icon: "ipad", title: "Sidecar Support", description: "Works with iPad as display")
@@ -230,7 +230,7 @@ struct FeatureRow: View {
     let icon: String
     let title: String
     let description: String
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)

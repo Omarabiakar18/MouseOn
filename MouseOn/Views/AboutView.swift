@@ -10,56 +10,56 @@ import SwiftUI
 // MARK: - About View
 
 struct AboutView: View {
-    
+
     // MARK: - Properties
-    
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
-    
+
     private var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
-    
+
     private var copyrightYear: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy"
         return formatter.string(from: Date())
     }
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         VStack(spacing: 16) {
             // App Icon
             appIconSection
-            
+
             // App Name and Version
             appInfoSection
-            
+
             Divider()
                 .padding(.horizontal, 40)
-            
+
             // Description
             descriptionSection
-            
+
             Divider()
                 .padding(.horizontal, 40)
-            
+
             // Links
             linksSection
-            
+
             Spacer()
-            
+
             // Copyright
             copyrightSection
         }
         .padding(24)
         .frame(width: 320, height: 380)
     }
-    
+
     // MARK: - Sections
-    
+
     private var appIconSection: some View {
         Image(nsImage: NSApp.applicationIconImage)
             .resizable()
@@ -68,29 +68,29 @@ struct AboutView: View {
             .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
             .accessibilityLabel("MouseOn app icon")
     }
-    
+
     private var appInfoSection: some View {
         VStack(spacing: 4) {
             Text("MouseOn")
                 .font(.title.bold())
-            
+
             Text("Version \(appVersion) (\(buildNumber))")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
     }
-    
+
     private var descriptionSection: some View {
         VStack(spacing: 8) {
             Text("A menu bar utility that shows which display your mouse pointer is on.")
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
-            
+
             featuresRow
         }
     }
-    
+
     private var featuresRow: some View {
         HStack(spacing: 16) {
             FeatureBadge(icon: "display.2", label: "Multi-Display")
@@ -99,7 +99,7 @@ struct AboutView: View {
         }
         .padding(.top, 8)
     }
-    
+
     private var linksSection: some View {
         VStack(spacing: 8) {
             if let url = URL(string: "https://github.com/Omarabiakar18/MouseOn") {
@@ -110,7 +110,7 @@ struct AboutView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
             }
-            
+
             Button(action: openAcknowledgements) {
                 Label("Acknowledgements", systemImage: "heart")
                     .font(.callout)
@@ -119,15 +119,15 @@ struct AboutView: View {
             .foregroundColor(.accentColor)
         }
     }
-    
+
     private var copyrightSection: some View {
         Text("© \(copyrightYear) MouseOn. All rights reserved.")
             .font(.caption2)
             .foregroundColor(.secondary)
     }
-    
+
     // MARK: - Actions
-    
+
     private func openAcknowledgements() {
         // Could open a sheet or another window with acknowledgements
     }
@@ -138,13 +138,13 @@ struct AboutView: View {
 struct FeatureBadge: View {
     let icon: String
     let label: String
-    
+
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.title3)
                 .foregroundColor(.accentColor)
-            
+
             Text(label)
                 .font(.caption2)
                 .foregroundColor(.secondary)

@@ -21,32 +21,32 @@ import SwiftUI
 struct StatsView: View {
     @EnvironmentObject var stats: StatsManager
     @State private var showResetConfirm = false
-    
+
     /// Pre-computed stats data to avoid O(n²) complexity
     /// Computed once per body evaluation instead of once per row
     private var computedStats: ComputedStatsData {
         ComputedStatsData(data: stats.data)
     }
-    
+
     var body: some View {
         let cached = computedStats  // Compute once for this body evaluation
-        
+
         VStack(spacing: 0) {
             // Header
             headerSection(totalTime: cached.totalTime)
                 .padding()
-            
+
             Divider()
-            
+
             // Content
             if stats.data.isEmpty {
                 emptyStateView
             } else {
                 statsListView(entries: cached.sortedEntries)
             }
-            
+
             Divider()
-            
+
             // Footer
             footerView
                 .padding()
@@ -59,25 +59,25 @@ struct StatsView: View {
             Text("This will permanently delete all tracked display time.")
         }
     }
-    
+
     // MARK: - Subviews
-    
+
     private func headerSection(totalTime: TimeInterval) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pointer Time per Display")
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
-                
+
                 if !stats.data.isEmpty {
                     Text("Total: \(formatTime(totalTime))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Spacer()
-            
+
             if !stats.data.isEmpty {
                 Text("\(stats.totalSwitches) switches")
                     .font(.caption)
@@ -89,29 +89,29 @@ struct StatsView: View {
             }
         }
     }
-    
+
     private var emptyStateView: some View {
         VStack(spacing: 12) {
             Spacer()
-            
+
             Image(systemName: "chart.bar.doc.horizontal")
                 .font(.system(size: 40))
                 .foregroundColor(.secondary.opacity(0.5))
-            
+
             Text("No data yet")
                 .font(.headline)
                 .foregroundColor(.secondary)
-            
+
             Text("Move your mouse between displays to start tracking")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             Spacer()
         }
         .padding()
     }
-    
+
     private func statsListView(entries: [StatsEntry]) -> some View {
         List {
             ForEach(entries) { entry in
@@ -125,7 +125,7 @@ struct StatsView: View {
         .listStyle(.inset)
         .accessibilityIdentifier("statsList")
     }
-    
+
     private var footerView: some View {
         HStack {
             Button(role: .destructive) {
@@ -134,9 +134,9 @@ struct StatsView: View {
                 Label("Reset", systemImage: "trash")
             }
             .accessibilityIdentifier("resetButton")
-            
+
             Spacer()
-            
+
             Button("Close") {
                 NSApp.keyWindow?.close()
             }
@@ -144,14 +144,14 @@ struct StatsView: View {
             .accessibilityIdentifier("closeButton")
         }
     }
-    
+
     // MARK: - Formatting
-    
+
     private func formatTime(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds) / 3600
         let minutes = Int(seconds.truncatingRemainder(dividingBy: 3600)) / 60
         let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-        
+
         if hours > 0 {
             return String(format: "%dh %dm", hours, minutes)
         } else if minutes > 0 {
@@ -170,12 +170,12 @@ struct StatsView: View {
 private struct ComputedStatsData {
     let totalTime: TimeInterval
     let sortedEntries: [StatsEntry]
-    
+
     init(data: [String: TimeInterval]) {
         // Compute total time once
         let total = data.values.reduce(0, +)
         self.totalTime = total
-        
+
         // Sort once and compute percentages in a single pass
         self.sortedEntries = data
             .sorted { $0.value > $1.value }
@@ -192,7 +192,7 @@ struct StatsEntry: Identifiable {
     let name: String
     let seconds: TimeInterval
     let percentage: Double
-    
+
     init(name: String, seconds: TimeInterval, percentage: Double) {
         self.id = name
         self.name = name
@@ -208,22 +208,22 @@ struct StatsRow: View {
     let displayName: String
     let seconds: TimeInterval
     let percentage: Double
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Display name
             Text(displayName)
                 .lineLimit(1)
-            
+
             Spacer()
-            
+
             // Percentage bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.1))
                         .frame(width: geometry.size.width)
-                    
+
                     Rectangle()
                         .fill(Color.accentColor.opacity(0.6))
                         .frame(width: geometry.size.width * CGFloat(percentage / 100))
@@ -231,14 +231,14 @@ struct StatsRow: View {
                 .cornerRadius(2)
             }
             .frame(width: 60, height: 8)
-            
+
             // Percentage text
             Text(String(format: "%.0f%%", percentage))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .monospacedDigit()
                 .frame(width: 36, alignment: .trailing)
-            
+
             // Time
             Text(formatTime(seconds))
                 .font(.callout)
@@ -249,12 +249,12 @@ struct StatsRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(displayName): \(formatTimeAccessible(seconds)), \(Int(percentage)) percent")
     }
-    
+
     private func formatTime(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds) / 3600
         let minutes = Int(seconds.truncatingRemainder(dividingBy: 3600)) / 60
         let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-        
+
         if hours > 0 {
             return String(format: "%dh %dm", hours, minutes)
         } else if minutes > 0 {
@@ -263,12 +263,12 @@ struct StatsRow: View {
             return String(format: "%ds", secs)
         }
     }
-    
+
     private func formatTimeAccessible(_ seconds: TimeInterval) -> String {
         let hours = Int(seconds) / 3600
         let minutes = Int(seconds.truncatingRemainder(dividingBy: 3600)) / 60
         let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-        
+
         if hours > 0 {
             return "\(hours) hours \(minutes) minutes"
         } else if minutes > 0 {
@@ -289,14 +289,14 @@ struct StatsView_Previews: PreviewProvider {
             StatsView()
                 .environmentObject(makePreviewStats())
                 .previewDisplayName("With Data")
-            
+
             // Empty state
             StatsView()
                 .environmentObject(StatsManager())
                 .previewDisplayName("Empty")
         }
     }
-    
+
     static func makePreviewStats() -> StatsManager {
         let stats = StatsManager()
         // We can't easily mock the data since it's private(set)

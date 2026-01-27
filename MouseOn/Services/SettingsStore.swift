@@ -20,9 +20,9 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "SettingsSto
 /// and method calls are guaranteed to happen on the main thread.
 @MainActor
 final class SettingsStore: ObservableObject {
-    
+
     // MARK: - Published Properties
-    
+
     @Published var features = FeatureToggles()
     @Published var opacity: Double = Constants.Defaults.opacity
     @Published var autoHideSeconds: Int = Constants.Defaults.autoHideSeconds
@@ -33,24 +33,24 @@ final class SettingsStore: ObservableObject {
     @Published var singleAccentColor: String = Constants.Defaults.accentColor
     @Published var highlightColor: String = Constants.Defaults.highlightColor
     @Published var findCursorHotkeyEnabled: Bool = true
-    
+
     // MARK: - Private Properties
-    
+
     private let defaults: UserDefaults
-    
+
     // MARK: - Initialization
-    
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         load()
     }
-    
+
     // MARK: - Public Methods
-    
+
     /// Load settings from UserDefaults
     func load() {
         logger.debug("Loading settings from UserDefaults")
-        
+
         // Load feature toggles
         if let data = defaults.data(forKey: Constants.UserDefaultsKeys.features) {
             do {
@@ -60,65 +60,69 @@ final class SettingsStore: ObservableObject {
                 logger.error("Failed to decode feature toggles: \(error.localizedDescription)")
             }
         }
-        
+
         // Load opacity
         let storedOpacity = defaults.double(forKey: Constants.UserDefaultsKeys.opacity)
-        opacity = storedOpacity == 0 
-            ? Constants.Defaults.opacity 
+        opacity = storedOpacity == 0
+            ? Constants.Defaults.opacity
             : storedOpacity.clamped(to: Constants.Defaults.opacityRange)
-        
+
         // Load auto-hide seconds
         let storedSecs = defaults.integer(forKey: Constants.UserDefaultsKeys.autoHideSeconds)
-        autoHideSeconds = storedSecs == 0 
-            ? Constants.Defaults.autoHideSeconds 
+        autoHideSeconds = storedSecs == 0
+            ? Constants.Defaults.autoHideSeconds
             : storedSecs.clamped(to: Constants.Defaults.autoHideRange)
-        
+
         // Load aliases
         if let aliasData = defaults.dictionary(forKey: Constants.UserDefaultsKeys.aliases) as? [String: String] {
             aliases = aliasData
         }
-        
+
         // Load max name length
         let storedLen = defaults.integer(forKey: Constants.UserDefaultsKeys.maxNameLength)
-        maxNameLength = Constants.Defaults.nameLengthRange.contains(storedLen) 
-            ? storedLen 
+        maxNameLength = Constants.Defaults.nameLengthRange.contains(storedLen)
+            ? storedLen
             : Constants.Defaults.maxNameLength
-        
+
         // Load display colors
         if let colorData = defaults.dictionary(forKey: Constants.UserDefaultsKeys.displayColors) as? [String: String] {
             displayColors = colorData
         }
-        
+
         // Load single accent color settings
         useSingleAccentColor = defaults.bool(forKey: Constants.UserDefaultsKeys.useSingleAccentColor)
-        if let storedAccent = defaults.string(forKey: Constants.UserDefaultsKeys.singleAccentColor), !storedAccent.isEmpty {
+        let accentKey = Constants.UserDefaultsKeys.singleAccentColor
+        if let storedAccent = defaults.string(forKey: accentKey),
+           !storedAccent.isEmpty {
             singleAccentColor = storedAccent
         }
-        
+
         // Load highlight color
-        if let storedHighlight = defaults.string(forKey: Constants.UserDefaultsKeys.highlightColor), !storedHighlight.isEmpty {
+        let highlightKey = Constants.UserDefaultsKeys.highlightColor
+        if let storedHighlight = defaults.string(forKey: highlightKey),
+           !storedHighlight.isEmpty {
             highlightColor = storedHighlight
         }
-        
+
         // Load hotkey setting (defaults to true)
         if defaults.object(forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled) != nil {
             findCursorHotkeyEnabled = defaults.bool(forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
         }
-        
+
         logger.info("Settings loaded successfully")
     }
-    
+
     /// Save settings to UserDefaults
     func save() {
         logger.debug("Saving settings to UserDefaults")
-        
+
         do {
             let featuresData = try JSONEncoder().encode(features)
             defaults.set(featuresData, forKey: Constants.UserDefaultsKeys.features)
         } catch {
             logger.error("Failed to encode feature toggles: \(error.localizedDescription)")
         }
-        
+
         defaults.set(opacity, forKey: Constants.UserDefaultsKeys.opacity)
         defaults.set(autoHideSeconds, forKey: Constants.UserDefaultsKeys.autoHideSeconds)
         defaults.set(aliases, forKey: Constants.UserDefaultsKeys.aliases)
@@ -128,10 +132,10 @@ final class SettingsStore: ObservableObject {
         defaults.set(singleAccentColor, forKey: Constants.UserDefaultsKeys.singleAccentColor)
         defaults.set(highlightColor, forKey: Constants.UserDefaultsKeys.highlightColor)
         defaults.set(findCursorHotkeyEnabled, forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
-        
+
         logger.info("Settings saved successfully")
     }
-    
+
     /// Get Color for a display ID
     /// - Parameter displayID: The display identifier
     /// - Returns: The color if set, or single accent color if enabled
@@ -142,7 +146,7 @@ final class SettingsStore: ObservableObject {
         guard let hex = displayColors[displayID] else { return nil }
         return Color(hex: hex)
     }
-    
+
     /// Get the highlight color as NSColor
     /// - Returns: The configured highlight color or system orange
     func getHighlightNSColor() -> NSColor {

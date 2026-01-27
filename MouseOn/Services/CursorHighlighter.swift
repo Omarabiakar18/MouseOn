@@ -16,27 +16,27 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "CursorHighl
 
 /// Manages cursor highlight overlay for finding the cursor
 final class CursorHighlighter {
-    
+
     // MARK: - Shared Instance
-    
+
     static let shared = CursorHighlighter()
-    
+
     // MARK: - Private Properties
-    
+
     private var overlayWindow: NSWindow?
     private var animationTimer: Timer?
     private var animationPhase: CGFloat = 0
     private var dismissWorkItem: DispatchWorkItem?
-    
+
     // MARK: - Initialization
-    
+
     private init() {}
-    
+
     deinit {
         // Cancel work item and timer - these are thread-safe operations
         dismissWorkItem?.cancel()
         animationTimer?.invalidate()
-        
+
         // Window cleanup must happen on main thread
         // Use async to avoid potential deadlock if deinit is called from main thread
         // while main thread is waiting on something else
@@ -50,9 +50,9 @@ final class CursorHighlighter {
             }
         }
     }
-    
+
     // MARK: - Public Methods
-    
+
     /// Show animated highlight around cursor
     /// - Parameter color: The color for the highlight animation
     func highlight(color: NSColor = .systemOrange) {
@@ -63,16 +63,16 @@ final class CursorHighlighter {
             }
             return
         }
-        
+
         logger.debug("Showing cursor highlight")
-        
+
         // Remove any existing overlay
         dismiss()
-        
+
         // Get cursor position
         let mouseLocation = NSEvent.mouseLocation
         let windowSize = Constants.UI.highlightWindowSize
-        
+
         // Create overlay window
         let windowRect = NSRect(
             x: mouseLocation.x - windowSize / 2,
@@ -80,7 +80,7 @@ final class CursorHighlighter {
             width: windowSize,
             height: windowSize
         )
-        
+
         let window = NSWindow(
             contentRect: windowRect,
             styleMask: .borderless,
@@ -93,14 +93,14 @@ final class CursorHighlighter {
         window.ignoresMouseEvents = true
         window.hasShadow = false
         window.isReleasedWhenClosed = false
-        
+
         let highlightView = CursorHighlightView(frame: NSRect(origin: .zero, size: windowRect.size))
         highlightView.highlightColor = color
         window.contentView = highlightView
-        
+
         window.orderFrontRegardless()
         overlayWindow = window
-        
+
         // Animate and follow cursor
         animationPhase = 0
         animationTimer = Timer.scheduledTimer(
@@ -111,14 +111,14 @@ final class CursorHighlighter {
                 timer.invalidate()
                 return
             }
-            
+
             // Update animation phase
             self.animationPhase += 0.05
             if let view = window.contentView as? CursorHighlightView {
                 view.phase = self.animationPhase
                 view.needsDisplay = true
             }
-            
+
             // Follow the cursor
             let currentLocation = NSEvent.mouseLocation
             let newOrigin = NSPoint(
@@ -127,7 +127,7 @@ final class CursorHighlighter {
             )
             window.setFrameOrigin(newOrigin)
         }
-        
+
         // Auto-dismiss after delay
         dismissWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -139,9 +139,9 @@ final class CursorHighlighter {
             execute: workItem
         )
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func dismiss() {
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
@@ -149,18 +149,18 @@ final class CursorHighlighter {
             }
             return
         }
-        
+
         dismissWorkItem?.cancel()
         dismissWorkItem = nil
-        
+
         animationTimer?.invalidate()
         animationTimer = nil
-        
+
         if let window = overlayWindow {
             window.orderOut(nil)
             overlayWindow = nil
         }
-        
+
         logger.debug("Cursor highlight dismissed")
     }
 }
@@ -169,31 +169,31 @@ final class CursorHighlighter {
 
 /// Custom view for drawing animated circles around cursor
 final class CursorHighlightView: NSView {
-    
+
     var phase: CGFloat = 0
     var highlightColor: NSColor = .systemOrange
-    
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        
+
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        
+
         let center = CGPoint(x: bounds.midX, y: bounds.midY)
         let maxRadius = min(bounds.width, bounds.height) / 2
-        
+
         // Draw multiple expanding circles
         for i in 0..<Constants.UI.highlightCircleCount {
             let offset = CGFloat(i) * 0.33
             let progress = (phase + offset).truncatingRemainder(dividingBy: 1.0)
             let radius = maxRadius * progress
             let alpha = 1.0 - progress
-            
+
             context.setStrokeColor(highlightColor.withAlphaComponent(alpha * 0.8).cgColor)
             context.setLineWidth(Constants.UI.highlightLineWidth)
             context.addArc(center: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: false)
             context.strokePath()
         }
-        
+
         // Draw center dot
         context.setFillColor(highlightColor.cgColor)
         context.addArc(

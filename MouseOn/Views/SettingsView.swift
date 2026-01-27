@@ -19,18 +19,18 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var tracker: DisplayTracker
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             TabView {
                 AppearanceTab()
                     .tabItem { Label("Appearance", systemImage: "paintbrush") }
                     .accessibilityIdentifier("appearanceTab")
-                
+
                 BehaviorTab()
                     .tabItem { Label("Behavior", systemImage: "gearshape") }
                     .accessibilityIdentifier("behaviorTab")
-                
+
                 DisplaysTab()
                     .tabItem { Label("Displays", systemImage: "display.2") }
                     .accessibilityIdentifier("displaysTab")
@@ -46,24 +46,24 @@ struct SettingsView: View {
 /// Settings for visual appearance and Find My Cursor feature
 struct AppearanceTab: View {
     @EnvironmentObject var settings: SettingsStore
-    
+
     var body: some View {
         Form {
             // Display name length
             Section {
                 displayedCharactersSection
             }
-            
+
             // Opacity control
             Section {
                 opacitySection
             }
-            
+
             // Color mode
             Section("Display Colors") {
                 colorModeSection
             }
-            
+
             // Find My Cursor
             Section("Find My Cursor") {
                 findMyCursorSection
@@ -72,9 +72,9 @@ struct AppearanceTab: View {
         .formStyle(.grouped)
         .onDisappear { settings.save() }
     }
-    
+
     // MARK: - Sections
-    
+
     private var displayedCharactersSection: some View {
         Stepper(
             value: $settings.maxNameLength,
@@ -91,7 +91,7 @@ struct AppearanceTab: View {
         .accessibilityIdentifier("maxNameLengthStepper")
         .accessibilityLabel("Maximum displayed characters: \(settings.maxNameLength)")
     }
-    
+
     private var opacitySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Menu bar opacity")
@@ -102,7 +102,7 @@ struct AppearanceTab: View {
                     step: 0.05
                 )
                 .accessibilityIdentifier("opacitySlider")
-                
+
                 Text("\(Int(settings.opacity * 100))%")
                     .monospacedDigit()
                     .frame(width: 44, alignment: .trailing)
@@ -110,7 +110,7 @@ struct AppearanceTab: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var colorModeSection: some View {
         Toggle(
@@ -118,7 +118,7 @@ struct AppearanceTab: View {
             isOn: $settings.useSingleAccentColor
         )
         .accessibilityIdentifier("singleAccentColorToggle")
-        
+
         if settings.useSingleAccentColor {
             ColorPicker(
                 "Accent color",
@@ -134,7 +134,7 @@ struct AppearanceTab: View {
                 .foregroundColor(.secondary)
         }
     }
-    
+
     @ViewBuilder
     private var findMyCursorSection: some View {
         ColorPicker(
@@ -145,13 +145,13 @@ struct AppearanceTab: View {
             )
         )
         .accessibilityIdentifier("highlightColorPicker")
-        
+
         Toggle(
             "Enable keyboard shortcut",
             isOn: $settings.findCursorHotkeyEnabled
         )
         .accessibilityIdentifier("hotkeyEnabledToggle")
-        
+
         LabeledContent("Shortcut") {
             HStack(spacing: 4) {
                 Text("⌥⌘F")
@@ -165,7 +165,7 @@ struct AppearanceTab: View {
             }
         }
         .font(.caption)
-        
+
         Text("Animation follows your cursor movement")
             .font(.caption)
             .foregroundColor(.secondary)
@@ -178,19 +178,19 @@ struct AppearanceTab: View {
 struct BehaviorTab: View {
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var launchAtLogin: LaunchAtLoginManager
-    
+
     var body: some View {
         Form {
             // Launch at Login
             Section("Startup") {
                 launchAtLoginSection
             }
-            
+
             // Statistics
             Section("Statistics") {
                 statisticsSection
             }
-            
+
             // Auto-hide
             Section("Auto-hide") {
                 autoHideSection
@@ -199,9 +199,9 @@ struct BehaviorTab: View {
         .formStyle(.grouped)
         .onDisappear { settings.save() }
     }
-    
+
     // MARK: - Sections
-    
+
     @ViewBuilder
     private var launchAtLoginSection: some View {
         Toggle(
@@ -209,7 +209,7 @@ struct BehaviorTab: View {
             isOn: $launchAtLogin.isEnabled
         )
         .accessibilityIdentifier("launchAtLoginToggle")
-        
+
         if launchAtLogin.statusMessage.contains("approval") {
             HStack {
                 Image(systemName: "exclamationmark.triangle")
@@ -217,9 +217,9 @@ struct BehaviorTab: View {
                 Text(launchAtLogin.statusMessage)
                     .font(.caption)
                     .foregroundColor(.orange)
-                
+
                 Spacer()
-                
+
                 Button("Open Settings") {
                     launchAtLogin.openSystemSettings()
                 }
@@ -228,7 +228,7 @@ struct BehaviorTab: View {
             }
         }
     }
-    
+
     private var statisticsSection: some View {
         Toggle(
             "Collect pointer-time stats",
@@ -236,7 +236,7 @@ struct BehaviorTab: View {
         )
         .accessibilityIdentifier("statsEnabledToggle")
     }
-    
+
     @ViewBuilder
     private var autoHideSection: some View {
         Toggle(
@@ -244,7 +244,7 @@ struct BehaviorTab: View {
             isOn: $settings.features.autoHideEnabled
         )
         .accessibilityIdentifier("autoHideEnabledToggle")
-        
+
         if settings.features.autoHideEnabled {
             Stepper(
                 value: $settings.autoHideSeconds,
@@ -260,7 +260,7 @@ struct BehaviorTab: View {
                 }
             }
             .accessibilityIdentifier("autoHideSecondsStepper")
-            
+
             Text("The menu bar item will reappear when you move your mouse")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -273,14 +273,14 @@ struct BehaviorTab: View {
 /// Settings for individual display aliases and colors
 struct DisplaysTab: View {
     @EnvironmentObject var settings: SettingsStore
-    
+
     var body: some View {
         Form {
             // Connected displays
             Section("Connected Displays") {
                 displaysList
             }
-            
+
             // Universal Control
             Section("Universal Control") {
                 universalControlSection
@@ -289,9 +289,9 @@ struct DisplaysTab: View {
         .formStyle(.grouped)
         .onDisappear { settings.save() }
     }
-    
+
     // MARK: - Sections
-    
+
     /// Snapshot of screens with stable display IDs to avoid iteration issues
     private var screenSnapshots: [(id: CGDirectDisplayID, name: String)] {
         NSScreen.screens.compactMap { screen in
@@ -301,7 +301,7 @@ struct DisplaysTab: View {
             return (id: id, name: screen.localizedName)
         }
     }
-    
+
     @ViewBuilder
     private var displaysList: some View {
         let screens = screenSnapshots
@@ -317,13 +317,13 @@ struct DisplaysTab: View {
             }
         }
     }
-    
+
     private var universalControlSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("When your cursor moves to an iPad via Universal Control, it will show this name:")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
+
             DisplayRow(
                 displayName: "iPad (via Universal Control)",
                 displayID: Constants.SpecialKeys.universalControl,
@@ -338,11 +338,11 @@ struct DisplaysTab: View {
 /// A row for configuring a single display's alias and color
 struct DisplayRow: View {
     @EnvironmentObject var settings: SettingsStore
-    
+
     let displayName: String
     let displayID: String
     var icon: String? = nil
-    
+
     private var nameBinding: Binding<String> {
         Binding(
             get: { settings.aliases[displayID] ?? "" },
@@ -355,14 +355,14 @@ struct DisplayRow: View {
             }
         )
     }
-    
+
     private var colorBinding: Binding<Color> {
         Binding(
             get: { settings.colorForDisplay(displayID) ?? .primary },
             set: { settings.displayColors[displayID] = $0.toHex() }
         )
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Display info
@@ -375,19 +375,19 @@ struct DisplayRow: View {
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Color picker
             ColorPicker("", selection: colorBinding)
                 .labelsHidden()
                 .frame(width: 32)
                 .accessibilityLabel("Color for \(displayName)")
-            
+
             // Alias field
             TextField("Custom name", text: nameBinding)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 130)
                 .accessibilityLabel("Alias for \(displayName)")
-            
+
             // Emoji picker button
             Button(action: { NSApp.orderFrontCharacterPalette(nil) }) {
                 Image(systemName: "face.smiling")
@@ -411,13 +411,13 @@ struct SettingsView_Previews: PreviewProvider {
                 .environmentObject(DisplayTracker())
                 .environmentObject(LaunchAtLoginManager())
                 .previewDisplayName("Settings")
-            
+
             // Appearance tab only
             AppearanceTab()
                 .environmentObject(makePreviewSettings())
                 .frame(width: 400, height: 400)
                 .previewDisplayName("Appearance")
-            
+
             // Behavior tab only
             BehaviorTab()
                 .environmentObject(makePreviewSettings())
@@ -426,8 +426,9 @@ struct SettingsView_Previews: PreviewProvider {
                 .previewDisplayName("Behavior")
         }
     }
-    
+
     static func makePreviewSettings() -> SettingsStore {
+        // swiftlint:disable:next force_unwrapping
         let settings = SettingsStore(defaults: UserDefaults(suiteName: "preview")!)
         settings.aliases["1"] = "MacBook Pro"
         settings.displayColors["1"] = "#007AFF"

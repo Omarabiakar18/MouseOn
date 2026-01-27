@@ -15,23 +15,23 @@ struct DisplaysDebugView: View {
     @EnvironmentObject var tracker: DisplayTracker
     @State private var mouseLocation: NSPoint = .zero
     @State private var timerCancellable: AnyCancellable?
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 headerSection
                 mouseInfoSection
-                
+
                 Divider()
-                
+
                 displaysSection
-                
+
                 Divider()
-                
+
                 debugInfoSection
-                
+
                 warningsSection
-                
+
                 footerSection
             }
             .padding()
@@ -57,9 +57,9 @@ struct DisplaysDebugView: View {
             timerCancellable = nil
         }
     }
-    
+
     // MARK: - Header
-    
+
     private var headerSection: some View {
         HStack {
             Text("Connected Displays")
@@ -73,22 +73,22 @@ struct DisplaysDebugView: View {
             .accessibilityIdentifier("refreshButton")
         }
     }
-    
+
     // MARK: - Mouse Info
-    
+
     private var mouseInfoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             let currentDisplay = tracker.currentName.isEmpty ? "-" : tracker.currentName
             Text("Mouse: (\(Int(mouseLocation.x)), \(Int(mouseLocation.y))) → \(currentDisplay)")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
+
             if tracker.isOnUniversalControl {
                 universalControlBadge
             }
         }
     }
-    
+
     private var universalControlBadge: some View {
         HStack {
             Image(systemName: "ipad.and.arrow.forward")
@@ -102,9 +102,9 @@ struct DisplaysDebugView: View {
         .cornerRadius(6)
         .accessibilityLabel("Universal Control is active, cursor is on iPad")
     }
-    
+
     // MARK: - Displays List
-    
+
     private var displaysSection: some View {
         Group {
             if tracker.allDisplays.isEmpty {
@@ -114,7 +114,7 @@ struct DisplaysDebugView: View {
             }
         }
     }
-    
+
     private var emptyDisplaysView: some View {
         VStack(spacing: 8) {
             Text("No displays found")
@@ -132,15 +132,15 @@ struct DisplaysDebugView: View {
             .foregroundColor(.secondary)
         }
     }
-    
+
     private var displaysList: some View {
         List(tracker.allDisplays) { display in
             DisplayInfoRow(display: display)
         }
     }
-    
+
     // MARK: - Debug Info
-    
+
     private var debugInfoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Debug Info")
@@ -153,40 +153,40 @@ struct DisplaysDebugView: View {
         .font(.system(.caption, design: .monospaced))
         .foregroundColor(.secondary)
     }
-    
+
     // MARK: - Warnings
-    
+
     @ViewBuilder
     private var warningsSection: some View {
         if tracker.allDisplays.contains(where: { $0.isMirrored }) {
             Divider()
             mirroringWarning
         }
-        
-        if tracker.allDisplays.count == 1 && 
-           NSScreen.screens.count == 1 && 
+
+        if tracker.allDisplays.count == 1 &&
+           NSScreen.screens.count == 1 &&
            !tracker.allDisplays.contains(where: { $0.isMirrored }) {
             Divider()
             singleDisplayWarning
         }
     }
-    
+
     private var mirroringWarning: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("🪞 MIRRORING DETECTED!")
                 .foregroundColor(.red)
                 .font(.caption.bold())
-            
+
             Text("Your iPad is mirroring your Mac's display.")
                 .font(.caption)
             Text("The mouse cannot move to a mirrored display.")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
+
             Text("To fix:")
                 .font(.caption.bold())
                 .padding(.top, 4)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("1. Open System Settings → Displays")
                 Text("2. Click on your iPad")
@@ -201,16 +201,16 @@ struct DisplaysDebugView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Warning: Mirroring detected. Your iPad is mirroring your Mac's display.")
     }
-    
+
     private var singleDisplayWarning: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("⚠️ Only 1 display detected")
                 .foregroundColor(.orange)
                 .font(.caption.bold())
-            
+
             Text("If iPad is connected via Sidecar:")
                 .font(.caption)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("1. Open System Settings → Displays")
                 Text("2. Click on your iPad in the display list")
@@ -223,9 +223,9 @@ struct DisplaysDebugView: View {
         }
         .padding(.top, 4)
     }
-    
+
     // MARK: - Footer
-    
+
     private var footerSection: some View {
         HStack {
             Spacer()
@@ -234,15 +234,15 @@ struct DisplaysDebugView: View {
         }
         .padding(.top, 8)
     }
-    
+
     // MARK: - Helpers
-    
+
     private func getActiveDisplayCount() -> Int {
         var displayCount: UInt32 = 0
         CGGetActiveDisplayList(0, nil, &displayCount)
         return Int(displayCount)
     }
-    
+
     private func getOnlineDisplayCount() -> Int {
         var displayCount: UInt32 = 0
         CGGetOnlineDisplayList(0, nil, &displayCount)
@@ -254,7 +254,7 @@ struct DisplaysDebugView: View {
 
 struct DisplayInfoRow: View {
     let display: DisplayInfo
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             headerRow
@@ -264,7 +264,7 @@ struct DisplayInfoRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
     }
-    
+
     private var headerRow: some View {
         HStack {
             if display.isCurrentMouse {
@@ -277,7 +277,7 @@ struct DisplayInfoRow: View {
             badges
         }
     }
-    
+
     @ViewBuilder
     private var badges: some View {
         if display.isMain {
@@ -293,13 +293,15 @@ struct DisplayInfoRow: View {
             Badge(text: "MIRRORED", color: .red)
         }
     }
-    
+
     private var detailsView: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("ID: \(display.id)")
             Text("Vendor: 0x\(String(display.vendorID, radix: 16, uppercase: true)) (\(display.vendorID))")
             Text("Model: 0x\(String(display.modelID, radix: 16, uppercase: true)) (\(display.modelID))")
-            Text("Frame: \(Int(display.frame.origin.x)),\(Int(display.frame.origin.y)) \(Int(display.frame.width))×\(Int(display.frame.height))")
+            let origin = "\(Int(display.frame.origin.x)),\(Int(display.frame.origin.y))"
+            let size = "\(Int(display.frame.width))×\(Int(display.frame.height))"
+            Text("Frame: \(origin) \(size)")
             HStack(spacing: 8) {
                 Text("Online: \(display.isOnline ? "✓" : "✗")")
                 Text("Active: \(display.isActive ? "✓" : "✗")")
@@ -309,7 +311,7 @@ struct DisplayInfoRow: View {
         .font(.system(.caption, design: .monospaced))
         .foregroundColor(.secondary)
     }
-    
+
     private var accessibilityDescription: String {
         var parts = [display.name]
         if display.isMain { parts.append("main display") }
@@ -326,7 +328,7 @@ struct DisplayInfoRow: View {
 struct Badge: View {
     let text: String
     let color: Color
-    
+
     var body: some View {
         Text(text)
             .font(.caption)

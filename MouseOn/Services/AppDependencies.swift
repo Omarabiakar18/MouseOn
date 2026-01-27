@@ -37,75 +37,75 @@ protocol AppDependenciesProtocol {
 /// SwiftUI's @StateObject ensures main thread creation.
 @MainActor
 final class AppDependencies: ObservableObject, AppDependenciesProtocol {
-    
+
     // MARK: - Services
-    
+
     let settings: SettingsStore
     let stats: StatsManager
     let tracker: DisplayTracker
     let launchAtLogin: LaunchAtLoginManager
     let powerMonitor: PowerStateMonitor
     let accessibilityManager: AccessibilityManager
-    
+
     // MARK: - Private
-    
+
     private var cancellables = Set<AnyCancellable>()
     private var terminationObserver: NSObjectProtocol?
-    
+
     // MARK: - Initialization
-    
+
     init(
         settings: SettingsStore? = nil,
         stats: StatsManager? = nil,
         userDefaults: UserDefaults = .standard
     ) {
         logger.info("Initializing app dependencies")
-        
+
         // Create settings first (no dependencies)
         self.settings = settings ?? SettingsStore(defaults: userDefaults)
-        
+
         // Create stats (no dependencies)
         self.stats = stats ?? StatsManager()
-        
+
         // Create power monitor
         self.powerMonitor = PowerStateMonitor()
-        
+
         // Create tracker with dependencies
         self.tracker = DisplayTracker()
-        
+
         // Create launch at login manager
         self.launchAtLogin = LaunchAtLoginManager()
-        
+
         // Create accessibility manager
         self.accessibilityManager = AccessibilityManager()
-        
+
         // Wire up dependencies
         setupBindings()
-        
+
         // Check accessibility permissions on startup
         checkAccessibilityPermissions()
-        
+
         // Register for app termination to flush stats
         setupTerminationHandler()
-        
+
         logger.info("App dependencies initialized successfully")
     }
-    
+
     deinit {
         if let observer = terminationObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func setupBindings() {
         // Inject dependencies into tracker
         tracker.inject(settings: settings, stats: stats, powerMonitor: powerMonitor)
-        
+
         // Setup hotkey manager with settings
         HotkeyManager.shared.setup(settings: settings)
-        
+
         // Monitor power state changes
         powerMonitor.$isOnBattery
             .removeDuplicates()
@@ -115,7 +115,7 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
             }
             .store(in: &cancellables)
     }
-    
+
     private func checkAccessibilityPermissions() {
         if !accessibilityManager.isAccessibilityEnabled {
             logger.warning("Accessibility permissions not granted. Global event monitoring will not work.")
@@ -124,7 +124,7 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
             logger.info("Accessibility permissions verified")
         }
     }
-    
+
     private func setupTerminationHandler() {
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -143,13 +143,14 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
 /// Mock dependencies for SwiftUI previews
 @MainActor
 final class PreviewDependencies: AppDependenciesProtocol {
+    // swiftlint:disable:next force_unwrapping
     let settings = SettingsStore(defaults: UserDefaults(suiteName: "preview")!)
     let stats = StatsManager()
     let tracker = DisplayTracker()
     let launchAtLogin = LaunchAtLoginManager()
     let powerMonitor = PowerStateMonitor()
     let accessibilityManager = AccessibilityManager()
-    
+
     init() {
         // Setup some preview data
         settings.aliases["1"] = "MacBook Pro"

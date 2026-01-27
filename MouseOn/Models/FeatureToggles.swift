@@ -13,10 +13,10 @@ import Foundation
 struct FeatureToggles: Codable {
     /// Whether to show the data box (currently unused)
     var showDataBox: Bool = true
-    
+
     /// Whether auto-hide is enabled for the menu bar item
     var autoHideEnabled: Bool = false
-    
+
     /// Whether statistics collection is enabled
     var statsEnabled: Bool = true
 }
