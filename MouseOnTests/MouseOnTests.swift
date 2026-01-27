@@ -20,6 +20,7 @@ final class SettingsStoreTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
+        // swiftlint:disable:next force_unwrapping
         testDefaults = UserDefaults(suiteName: "com.mouseon.tests.\(UUID().uuidString)")!
         settings = SettingsStore(defaults: testDefaults)
     }

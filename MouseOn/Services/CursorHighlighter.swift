@@ -71,7 +71,7 @@ final class CursorHighlighter {
 
         // Get cursor position
         let mouseLocation = NSEvent.mouseLocation
-        let windowSize = Constants.UI.highlightWindowSize
+        let windowSize = Constants.UserInterface.highlightWindowSize
 
         // Create overlay window
         let windowRect = NSRect(
@@ -182,14 +182,14 @@ final class CursorHighlightView: NSView {
         let maxRadius = min(bounds.width, bounds.height) / 2
 
         // Draw multiple expanding circles
-        for i in 0..<Constants.UI.highlightCircleCount {
+        for i in 0..<Constants.UserInterface.highlightCircleCount {
             let offset = CGFloat(i) * 0.33
             let progress = (phase + offset).truncatingRemainder(dividingBy: 1.0)
             let radius = maxRadius * progress
             let alpha = 1.0 - progress
 
             context.setStrokeColor(highlightColor.withAlphaComponent(alpha * 0.8).cgColor)
-            context.setLineWidth(Constants.UI.highlightLineWidth)
+            context.setLineWidth(Constants.UserInterface.highlightLineWidth)
             context.addArc(center: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: false)
             context.strokePath()
         }
@@ -198,7 +198,7 @@ final class CursorHighlightView: NSView {
         context.setFillColor(highlightColor.cgColor)
         context.addArc(
             center: center,
-            radius: Constants.UI.highlightCenterDotRadius,
+            radius: Constants.UserInterface.highlightCenterDotRadius,
             startAngle: 0,
             endAngle: .pi * 2,
             clockwise: false

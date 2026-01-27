@@ -15,13 +15,22 @@ identifier_name:
     warning: 1
     error: 1
 
+type_name:
+  min_length:
+    warning: 2
+    error: 1
+
 type_body_length:
-  warning: 300
-  error: 500
+  warning: 450
+  error: 600
 
 function_body_length:
-  warning: 50
+  warning: 65
   error: 100
+
+file_length:
+  warning: 750
+  error: 1200
 
 excluded:
   - Pods

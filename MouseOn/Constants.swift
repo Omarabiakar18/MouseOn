@@ -109,9 +109,9 @@ enum Constants {
         static let universalControl = "universal-control"
     }
 
-    // MARK: - UI
+    // MARK: - UI Constants
 
-    enum UI {
+    enum UserInterface {
         /// Cursor highlight window size
         static let highlightWindowSize: CGFloat = 200
 

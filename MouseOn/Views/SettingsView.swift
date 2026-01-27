@@ -341,7 +341,7 @@ struct DisplayRow: View {
 
     let displayName: String
     let displayID: String
-    var icon: String? = nil
+    var icon: String?
 
     private var nameBinding: Binding<String> {
         Binding(
@@ -389,7 +389,9 @@ struct DisplayRow: View {
                 .accessibilityLabel("Alias for \(displayName)")
 
             // Emoji picker button
-            Button(action: { NSApp.orderFrontCharacterPalette(nil) }) {
+            Button {
+                NSApp.orderFrontCharacterPalette(nil)
+            } label: {
                 Image(systemName: "face.smiling")
             }
             .buttonStyle(.borderless)
