@@ -45,8 +45,12 @@ final class StatsManager: ObservableObject {
 
     nonisolated(unsafe) private var currentName: String?
     nonisolated(unsafe) private var startTime = Date()
+    nonisolated(unsafe) private var pendingSave: DispatchWorkItem?
     private let statsURL: URL
     private let queue = DispatchQueue(label: "com.mouseon.StatsManager")
+
+    /// Debounce interval for saving stats (reduces disk I/O)
+    private let saveDebounceInterval: TimeInterval = 5.0
 
     // MARK: - Initialization
 
@@ -90,7 +94,8 @@ final class StatsManager: ObservableObject {
                 self?.totalSwitches = newSwitches
             }
 
-            self.saveInternal()
+            // Debounced save to reduce disk I/O
+            self.scheduleSave()
 
             logger.debug("Recorded switch to '\(name)', total switches: \(newSwitches)")
         }
@@ -178,8 +183,25 @@ final class StatsManager: ObservableObject {
         }
     }
 
+    /// Schedule a debounced save to reduce disk I/O
+    nonisolated private func scheduleSave() {
+        // Cancel any pending save
+        pendingSave?.cancel()
+
+        // Schedule new save after debounce interval
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.saveInternal()
+        }
+        pendingSave = workItem
+        queue.asyncAfter(deadline: .now() + saveDebounceInterval, execute: workItem)
+    }
+
     /// Internal save method - must be called from queue
     nonisolated private func saveInternal() {
+        // Clear pending save since we're saving now
+        pendingSave?.cancel()
+        pendingSave = nil
+
         do {
             let persistedStats = PersistedStats(
                 displayTimes: internalData,
