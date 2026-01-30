@@ -19,6 +19,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var tracker: DisplayTracker
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         TabView {
@@ -33,6 +34,10 @@ struct SettingsView: View {
             DisplaysTab()
                 .tabItem { Label("Displays", systemImage: "display.2") }
                 .accessibilityIdentifier("displaysTab")
+
+            MoreTab(openWindow: openWindow)
+                .tabItem { Label("More", systemImage: "ellipsis.circle") }
+                .accessibilityIdentifier("moreTab")
         }
         .padding()
         .frame(minWidth: 400, minHeight: 340)
@@ -329,6 +334,52 @@ struct DisplaysTab: View {
                 icon: "ipad"
             )
         }
+    }
+}
+
+// MARK: - More Tab
+
+/// Additional options and information
+struct MoreTab: View {
+    let openWindow: OpenWindowAction
+
+    var body: some View {
+        Form {
+            // Windows section
+            Section("Windows") {
+                Button {
+                    openWindow(id: "stats")
+                    NSApp.activate(ignoringOtherApps: true)
+                } label: {
+                    Label("View Statistics", systemImage: "chart.bar")
+                }
+                .buttonStyle(.link)
+
+                Button {
+                    openWindow(id: "displays-debug")
+                    NSApp.activate(ignoringOtherApps: true)
+                } label: {
+                    Label("Connected Displays Info", systemImage: "display.2")
+                }
+                .buttonStyle(.link)
+            }
+
+            // About section
+            Section("About") {
+                Button {
+                    openWindow(id: "about")
+                    NSApp.activate(ignoringOtherApps: true)
+                } label: {
+                    Label("About MouseOn", systemImage: "info.circle")
+                }
+                .buttonStyle(.link)
+
+                Link(destination: URL(string: "https://github.com/Omarabiakar18/MouseOn")!) {
+                    Label("GitHub Repository", systemImage: "link")
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
