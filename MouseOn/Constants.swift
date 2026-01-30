@@ -85,6 +85,18 @@ enum Constants {
 
         /// Default name for Universal Control device
         static let universalControlName: String = "iPad"
+
+        /// Default large cursor duration in seconds
+        static let largeCursorDuration: Double = 5.0
+
+        /// Large cursor duration range
+        static let largeCursorDurationRange: ClosedRange<Double> = 2.0...15.0
+
+        /// Default large cursor size multiplier
+        static let largeCursorSize: Double = 3.0
+
+        /// Large cursor size range
+        static let largeCursorSizeRange: ClosedRange<Double> = 2.0...5.0
     }
 
     // MARK: - UserDefaults Keys
@@ -101,6 +113,8 @@ enum Constants {
         static let highlightColor = "highlightColor"
         static let findCursorHotkeyEnabled = "findCursorHotkeyEnabled"
         static let displayEmojis = "displayEmojis"
+        static let largeCursorDuration = "largeCursorDuration"
+        static let largeCursorSize = "largeCursorSize"
     }
 
     // MARK: - Special Keys

@@ -34,6 +34,8 @@ final class SettingsStore: ObservableObject {
     @Published var highlightColor: String = Constants.Defaults.highlightColor
     @Published var findCursorHotkeyEnabled: Bool = true
     @Published var displayEmojis: [String: String] = [:]  // displayID -> emoji
+    @Published var largeCursorDuration: Double = Constants.Defaults.largeCursorDuration
+    @Published var largeCursorSize: Double = Constants.Defaults.largeCursorSize
 
     // MARK: - Private Properties
 
@@ -115,6 +117,17 @@ final class SettingsStore: ObservableObject {
             displayEmojis = emojiData
         }
 
+        // Load large cursor settings
+        let storedDuration = defaults.double(forKey: Constants.UserDefaultsKeys.largeCursorDuration)
+        largeCursorDuration = storedDuration == 0
+            ? Constants.Defaults.largeCursorDuration
+            : storedDuration.clamped(to: Constants.Defaults.largeCursorDurationRange)
+
+        let storedSize = defaults.double(forKey: Constants.UserDefaultsKeys.largeCursorSize)
+        largeCursorSize = storedSize == 0
+            ? Constants.Defaults.largeCursorSize
+            : storedSize.clamped(to: Constants.Defaults.largeCursorSizeRange)
+
         logger.info("Settings loaded successfully")
     }
 
@@ -139,6 +152,8 @@ final class SettingsStore: ObservableObject {
         defaults.set(highlightColor, forKey: Constants.UserDefaultsKeys.highlightColor)
         defaults.set(findCursorHotkeyEnabled, forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
         defaults.set(displayEmojis, forKey: Constants.UserDefaultsKeys.displayEmojis)
+        defaults.set(largeCursorDuration, forKey: Constants.UserDefaultsKeys.largeCursorDuration)
+        defaults.set(largeCursorSize, forKey: Constants.UserDefaultsKeys.largeCursorSize)
 
         logger.info("Settings saved successfully")
     }

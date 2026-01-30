@@ -22,4 +22,7 @@ struct FeatureToggles: Codable {
 
     /// Whether to show emoji instead of display name in menu bar
     var emojiModeEnabled: Bool = false
+
+    /// Whether large cursor mode hotkey is enabled
+    var largeCursorEnabled: Bool = true
 }

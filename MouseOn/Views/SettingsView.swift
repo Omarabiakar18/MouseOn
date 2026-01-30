@@ -77,6 +77,11 @@ struct AppearanceTab: View {
             Section("Find My Cursor") {
                 findMyCursorSection
             }
+
+            // Large Cursor Mode
+            Section("Large Cursor Mode") {
+                largeCursorSection
+            }
         }
         .formStyle(.grouped)
         .onDisappear { settings.save() }
@@ -191,6 +196,67 @@ struct AppearanceTab: View {
         .font(.caption)
 
         Text("Animation follows your cursor movement")
+            .font(.caption)
+            .foregroundColor(.secondary)
+    }
+
+    @ViewBuilder
+    private var largeCursorSection: some View {
+        Toggle(
+            "Enable large cursor mode",
+            isOn: $settings.features.largeCursorEnabled
+        )
+        .accessibilityIdentifier("largeCursorEnabledToggle")
+
+        if settings.features.largeCursorEnabled {
+            // Duration slider
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Display duration")
+                HStack {
+                    Slider(
+                        value: $settings.largeCursorDuration,
+                        in: Constants.Defaults.largeCursorDurationRange,
+                        step: 1.0
+                    )
+                    Text("\(Int(settings.largeCursorDuration))s")
+                        .monospacedDigit()
+                        .frame(width: 30, alignment: .trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            // Size slider
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Cursor size")
+                HStack {
+                    Slider(
+                        value: $settings.largeCursorSize,
+                        in: Constants.Defaults.largeCursorSizeRange,
+                        step: 0.5
+                    )
+                    Text("\(String(format: "%.1fx", settings.largeCursorSize))")
+                        .monospacedDigit()
+                        .frame(width: 40, alignment: .trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            LabeledContent("Shortcut") {
+                HStack(spacing: 4) {
+                    Text("⌥⌘L")
+                        .font(.system(.body, design: .rounded).bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.2))
+                        .cornerRadius(4)
+                    Text("(Option + Command + L)")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .font(.caption)
+        }
+
+        Text("Shows a larger cursor for easier visibility")
             .font(.caption)
             .foregroundColor(.secondary)
     }
