@@ -21,23 +21,22 @@ struct SettingsView: View {
     @EnvironmentObject var tracker: DisplayTracker
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            TabView {
-                AppearanceTab()
-                    .tabItem { Label("Appearance", systemImage: "paintbrush") }
-                    .accessibilityIdentifier("appearanceTab")
+        TabView {
+            AppearanceTab()
+                .tabItem { Label("Appearance", systemImage: "paintbrush") }
+                .accessibilityIdentifier("appearanceTab")
 
-                BehaviorTab()
-                    .tabItem { Label("Behavior", systemImage: "gearshape") }
-                    .accessibilityIdentifier("behaviorTab")
+            BehaviorTab()
+                .tabItem { Label("Behavior", systemImage: "gearshape") }
+                .accessibilityIdentifier("behaviorTab")
 
-                DisplaysTab()
-                    .tabItem { Label("Displays", systemImage: "display.2") }
-                    .accessibilityIdentifier("displaysTab")
-            }
+            DisplaysTab()
+                .tabItem { Label("Displays", systemImage: "display.2") }
+                .accessibilityIdentifier("displaysTab")
         }
         .padding()
         .frame(minWidth: 400, minHeight: 340)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

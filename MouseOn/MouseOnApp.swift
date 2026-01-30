@@ -98,7 +98,7 @@ struct MouseOnApp: App {
         .menuBarExtraStyle(.window)
 
         // Settings Window
-        WindowGroup(id: "settings") {
+        Window("Settings", id: "settings") {
             SettingsView()
                 .environmentObject(dependencies.settings)
                 .environmentObject(dependencies.tracker)
@@ -107,21 +107,21 @@ struct MouseOnApp: App {
         .defaultSize(width: 450, height: 480)
 
         // Stats Window
-        WindowGroup(id: "stats") {
+        Window("Stats", id: "stats") {
             StatsView()
                 .environmentObject(dependencies.stats)
         }
         .defaultSize(width: 480, height: 300)
 
         // Debug Window
-        WindowGroup(id: "displays-debug") {
+        Window("Connected Displays", id: "displays-debug") {
             DisplaysDebugView()
                 .environmentObject(dependencies.tracker)
         }
         .defaultSize(width: 550, height: 450)
 
         // About Window
-        WindowGroup(id: "about") {
+        Window("About MouseOn", id: "about") {
             AboutView()
         }
         .windowResizability(.contentSize)

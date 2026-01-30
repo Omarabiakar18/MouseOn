@@ -186,9 +186,7 @@ final class DisplayTracker: ObservableObject {
             useOnlineList: false
         ))
 
-        Task { @MainActor [weak self] in
-            self?.allDisplays = result
-        }
+        allDisplays = result
 
         logger.debug("Display list refreshed: \(result.count) displays found")
     }
@@ -340,10 +338,8 @@ final class DisplayTracker: ObservableObject {
             if !result.wasOnUC {
                 // Update internal state first (thread-safe) - use sync for consistency
                 stateQueue.sync { self.isOnUniversalControlInternal = true }
-                // Then update @Published property on main thread
-                Task { @MainActor [weak self] in
-                    self?.isOnUniversalControl = true
-                }
+                // Update @Published property
+                isOnUniversalControl = true
                 let name = settings?.aliases[Constants.SpecialKeys.universalControl]
                     ?? Constants.Defaults.universalControlName
                 setDisplay(name: name, id: nil)
@@ -356,10 +352,8 @@ final class DisplayTracker: ObservableObject {
                     self.isOnUniversalControlInternal = false
                     self.stuckAtEdgeCount = 0
                 }
-                // Then update @Published property on main thread
-                Task { @MainActor [weak self] in
-                    self?.isOnUniversalControl = false
-                }
+                // Update @Published property
+                isOnUniversalControl = false
                 updateCurrentDisplay()
                 logger.info("Universal Control ended - cursor back on Mac")
             }
@@ -448,10 +442,8 @@ final class DisplayTracker: ObservableObject {
 
         // Update internal state first (thread-safe) - use sync for consistency
         stateQueue.sync { self.isOnUniversalControlInternal = true }
-        // Then update @Published property on main thread
-        Task { @MainActor [weak self] in
-            self?.isOnUniversalControl = true
-        }
+        // Update @Published property
+        isOnUniversalControl = true
     }
 
     private func resolveDisplayName(key: String, fallbackName: String, isSidecar: Bool) -> String {
@@ -468,11 +460,8 @@ final class DisplayTracker: ObservableObject {
         guard name != currentName else { return }
 
         lastDisplayID = id
-
-        Task { @MainActor [weak self] in
-            self?.currentName = name
-            self?.currentDisplayID = id
-        }
+        currentName = name
+        currentDisplayID = id
         stats?.record(switchTo: name)
 
         logger.debug("Display changed to: '\(name)'")
