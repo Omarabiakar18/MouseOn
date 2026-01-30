@@ -33,6 +33,7 @@ final class SettingsStore: ObservableObject {
     @Published var singleAccentColor: String = Constants.Defaults.accentColor
     @Published var highlightColor: String = Constants.Defaults.highlightColor
     @Published var findCursorHotkeyEnabled: Bool = true
+    @Published var displayEmojis: [String: String] = [:]  // displayID -> emoji
 
     // MARK: - Private Properties
 
@@ -109,6 +110,11 @@ final class SettingsStore: ObservableObject {
             findCursorHotkeyEnabled = defaults.bool(forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
         }
 
+        // Load display emojis
+        if let emojiData = defaults.dictionary(forKey: Constants.UserDefaultsKeys.displayEmojis) as? [String: String] {
+            displayEmojis = emojiData
+        }
+
         logger.info("Settings loaded successfully")
     }
 
@@ -132,6 +138,7 @@ final class SettingsStore: ObservableObject {
         defaults.set(singleAccentColor, forKey: Constants.UserDefaultsKeys.singleAccentColor)
         defaults.set(highlightColor, forKey: Constants.UserDefaultsKeys.highlightColor)
         defaults.set(findCursorHotkeyEnabled, forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
+        defaults.set(displayEmojis, forKey: Constants.UserDefaultsKeys.displayEmojis)
 
         logger.info("Settings saved successfully")
     }
@@ -154,5 +161,12 @@ final class SettingsStore: ObservableObject {
             return NSColor(color)
         }
         return .systemOrange
+    }
+
+    /// Get emoji for a display ID
+    /// - Parameter displayID: The display identifier
+    /// - Returns: The emoji if set, nil otherwise
+    func emojiForDisplay(_ displayID: String) -> String? {
+        return displayEmojis[displayID]
     }
 }

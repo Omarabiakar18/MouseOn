@@ -100,6 +100,7 @@ enum Constants {
         static let singleAccentColor = "singleAccentColor"
         static let highlightColor = "highlightColor"
         static let findCursorHotkeyEnabled = "findCursorHotkeyEnabled"
+        static let displayEmojis = "displayEmojis"
     }
 
     // MARK: - Special Keys

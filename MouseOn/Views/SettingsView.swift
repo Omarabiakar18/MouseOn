@@ -58,6 +58,11 @@ struct AppearanceTab: View {
                 opacitySection
             }
 
+            // Emoji mode
+            Section("Emoji Mode") {
+                emojiModeSection
+            }
+
             // Color mode
             Section("Display Colors") {
                 colorModeSection
@@ -129,6 +134,21 @@ struct AppearanceTab: View {
             .accessibilityIdentifier("accentColorPicker")
         } else {
             Text("Configure per-display colors in the Displays tab")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var emojiModeSection: some View {
+        Toggle(
+            "Show emoji instead of display name",
+            isOn: $settings.features.emojiModeEnabled
+        )
+        .accessibilityIdentifier("emojiModeToggle")
+
+        if settings.features.emojiModeEnabled {
+            Text("Set an emoji for each display in the Displays tab")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -362,41 +382,77 @@ struct DisplayRow: View {
         )
     }
 
-    var body: some View {
-        HStack(spacing: 12) {
-            // Display info
-            HStack(spacing: 6) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .foregroundColor(.secondary)
+    private var emojiBinding: Binding<String> {
+        Binding(
+            get: { settings.displayEmojis[displayID] ?? "" },
+            set: { newValue in
+                // Only keep first character (emoji) or clear
+                let emoji = String(newValue.prefix(2))  // Emoji can be 2 chars (with modifiers)
+                if emoji.isEmpty {
+                    settings.displayEmojis.removeValue(forKey: displayID)
+                } else {
+                    settings.displayEmojis[displayID] = emoji
                 }
-                Text(displayName)
-                    .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        )
+    }
 
-            // Color picker
-            ColorPicker("", selection: colorBinding)
-                .labelsHidden()
-                .frame(width: 32)
-                .accessibilityLabel("Color for \(displayName)")
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                // Display info
+                HStack(spacing: 6) {
+                    if let icon = icon {
+                        Image(systemName: icon)
+                            .foregroundColor(.secondary)
+                    }
+                    Text(displayName)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Alias field
-            TextField("Custom name", text: nameBinding)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 130)
-                .accessibilityLabel("Alias for \(displayName)")
-
-            // Emoji picker button
-            Button {
-                NSApp.orderFrontCharacterPalette(nil)
-            } label: {
-                Image(systemName: "face.smiling")
+                // Color picker
+                ColorPicker("", selection: colorBinding)
+                    .labelsHidden()
+                    .frame(width: 32)
+                    .accessibilityLabel("Color for \(displayName)")
             }
-            .buttonStyle(.borderless)
-            .help("Open Emoji Picker")
-            .accessibilityLabel("Open emoji picker for \(displayName)")
+
+            HStack(spacing: 8) {
+                // Emoji field (for emoji mode)
+                HStack(spacing: 4) {
+                    Text("Emoji:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("🖥️", text: emojiBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 44)
+                        .accessibilityLabel("Emoji for \(displayName)")
+                    Button {
+                        NSApp.orderFrontCharacterPalette(nil)
+                    } label: {
+                        Image(systemName: "face.smiling")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open Emoji Picker")
+                }
+
+                Spacer()
+
+                // Alias field
+                HStack(spacing: 4) {
+                    Text("Alias:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("Custom name", text: nameBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 110)
+                        .accessibilityLabel("Alias for \(displayName)")
+                }
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 

@@ -61,23 +61,43 @@ struct MouseOnApp: App {
 
     // MARK: - Computed Properties
 
-    /// Current screen name clipped to the user-selected length
-    private var truncatedName: String {
+    /// Current screen name or emoji, depending on mode
+    private var menuBarText: String {
+        // Check emoji mode first
+        if dependencies.settings.features.emojiModeEnabled {
+            let displayKey = currentDisplayKey
+            if let emoji = dependencies.settings.emojiForDisplay(displayKey), !emoji.isEmpty {
+                return emoji
+            }
+            // Fall back to default emoji if none set
+            return "🖥️"
+        }
+
+        // Regular text mode
         let raw = dependencies.tracker.currentName.isEmpty ? "-" : dependencies.tracker.currentName
         let limit = dependencies.settings.maxNameLength
         return raw.count > limit ? String(raw.prefix(limit)) + "…" : raw
     }
 
+    /// Alias for backward compatibility
+    private var truncatedName: String {
+        return menuBarText
+    }
+
+    /// Current display key for lookups
+    private var currentDisplayKey: String {
+        if dependencies.tracker.isOnUniversalControl {
+            return Constants.SpecialKeys.universalControl
+        } else if let id = dependencies.tracker.currentDisplayID {
+            return String(id)
+        }
+        return ""
+    }
+
     /// Color for the current display (if set)
     private var currentDisplayColor: Color {
-        let displayKey: String
-        if dependencies.tracker.isOnUniversalControl {
-            displayKey = Constants.SpecialKeys.universalControl
-        } else if let id = dependencies.tracker.currentDisplayID {
-            displayKey = String(id)
-        } else {
-            return .primary
-        }
+        let displayKey = currentDisplayKey
+        guard !displayKey.isEmpty else { return .primary }
         return dependencies.settings.colorForDisplay(displayKey) ?? .primary
     }
 

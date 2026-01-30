@@ -19,4 +19,7 @@ struct FeatureToggles: Codable {
 
     /// Whether statistics collection is enabled
     var statsEnabled: Bool = true
+
+    /// Whether to show emoji instead of display name in menu bar
+    var emojiModeEnabled: Bool = false
 }
