@@ -138,27 +138,7 @@ struct MouseOnApp: App {
 
     @ViewBuilder
     private var menuContent: some View {
-        Button("Settings") {
-            openWindow(id: "settings")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .keyboardShortcut(",", modifiers: .command)
-        .accessibilityIdentifier("settingsButton")
-
-        Button("Stats") {
-            openWindow(id: "stats")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .accessibilityIdentifier("statsButton")
-
-        Button("Connected Displays") {
-            openWindow(id: "displays-debug")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .accessibilityIdentifier("displaysButton")
-
-        Divider()
-
+        // Find My Cursor - useful quick action
         Button("Find My Cursor") {
             CursorHighlighter.shared.highlight(
                 color: dependencies.settings.getHighlightNSColor()
@@ -169,24 +149,16 @@ struct MouseOnApp: App {
 
         Divider()
 
-        // Power state indicator (when on battery)
-        if dependencies.powerMonitor.isOnBattery {
-            HStack {
-                Image(systemName: "battery.50")
-                Text("Power Saving Mode")
-            }
-            .foregroundColor(.secondary)
-
-            Divider()
-        }
-
-        Button("About MouseOn") {
-            openWindow(id: "about")
+        Button("Settings...") {
+            openWindow(id: "settings")
             NSApp.activate(ignoringOtherApps: true)
         }
-        .accessibilityIdentifier("aboutButton")
+        .keyboardShortcut(",", modifiers: .command)
+        .accessibilityIdentifier("settingsButton")
 
-        Button("Quit") {
+        Divider()
+
+        Button("Quit MouseOn") {
             logger.info("User initiated quit")
             dependencies.stats.flush()
             NSApplication.shared.terminate(nil)
