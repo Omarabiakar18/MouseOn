@@ -118,6 +118,8 @@ struct MouseOnApp: App {
             Text(truncatedName)
                 .foregroundColor(currentDisplayColor)
                 .opacity(menuBarOpacity)
+                .accessibilityLabel("MouseOn: Currently on \(truncatedName)")
+                .accessibilityHint("Click to open MouseOn menu")
                 .onAppear {
                     logger.debug("Menu bar item appeared")
                 }
@@ -166,6 +168,8 @@ struct MouseOnApp: App {
         }
         .keyboardShortcut("f", modifiers: [.option, .command])
         .accessibilityIdentifier("findCursorButton")
+        .accessibilityLabel("Find My Cursor")
+        .accessibilityHint("Shows an animated highlight around your cursor. Shortcut: Option Command F")
 
         Divider()
 

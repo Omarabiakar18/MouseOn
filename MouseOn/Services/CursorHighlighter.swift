@@ -66,6 +66,11 @@ final class CursorHighlighter {
 
         logger.debug("Showing cursor highlight")
 
+        // Announce to VoiceOver users
+        Task { @MainActor in
+            AccessibilityAnnouncer.shared.announceFindCursor()
+        }
+
         // Remove any existing overlay
         dismiss()
 

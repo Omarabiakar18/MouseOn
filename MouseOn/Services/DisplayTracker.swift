@@ -464,6 +464,9 @@ final class DisplayTracker: ObservableObject {
         currentDisplayID = id
         stats?.record(switchTo: name)
 
+        // Announce to VoiceOver users
+        AccessibilityAnnouncer.shared.announceDisplayChange(name)
+
         logger.debug("Display changed to: '\(name)'")
     }
 
