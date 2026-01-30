@@ -184,4 +184,33 @@ final class SettingsStore: ObservableObject {
     func emojiForDisplay(_ displayID: String) -> String? {
         return displayEmojis[displayID]
     }
+
+    /// Get display name for a display ID
+    /// Returns the user's alias if set, otherwise looks up the system name
+    /// - Parameter displayID: The display identifier (CGDirectDisplayID as String, or special key)
+    /// - Returns: The display name to show in the UI
+    func displayName(for displayID: String) -> String {
+        // Check for user-defined alias first
+        if let alias = aliases[displayID], !alias.isEmpty {
+            return alias
+        }
+
+        // Check for Universal Control special key
+        if displayID == Constants.SpecialKeys.universalControl {
+            return Constants.Defaults.universalControlName
+        }
+
+        // Try to get system name for numeric display IDs
+        if let numericID = UInt32(displayID) {
+            let cgDisplayID = CGDirectDisplayID(numericID)
+            if let screen = NSScreen.screens.first(where: {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == cgDisplayID
+            }) {
+                return screen.localizedName
+            }
+        }
+
+        // Fallback for unknown displays
+        return "Display \(displayID.prefix(8))"
+    }
 }

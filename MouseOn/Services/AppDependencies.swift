@@ -87,6 +87,9 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
         // Wire up dependencies
         setupBindings()
 
+        // Forward tracker changes to trigger view updates
+        setupTrackerBinding()
+
         // Forward auto-hide visibility changes to trigger view updates
         setupAutoHideBinding()
 
@@ -142,6 +145,16 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
             logger.info("App terminating, flushing stats")
             self?.stats.flush()
         }
+    }
+
+    private func setupTrackerBinding() {
+        // Forward tracker changes to trigger SwiftUI view updates
+        tracker.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     private func setupAutoHideBinding() {

@@ -43,7 +43,7 @@ final class StatsManager: ObservableObject {
     // These properties are protected by the serial queue for thread safety.
     // Marked nonisolated(unsafe) because the queue provides synchronization.
 
-    nonisolated(unsafe) private var currentName: String?
+    nonisolated(unsafe) private var currentDisplayID: String?
     nonisolated(unsafe) private var startTime = Date()
     nonisolated(unsafe) private var pendingSave: DispatchWorkItem?
     private let statsURL: URL
@@ -73,16 +73,16 @@ final class StatsManager: ObservableObject {
     // MARK: - Public Methods
 
     /// Record a display switch
-    /// - Parameter name: The name of the display switched to
-    nonisolated func record(switchTo name: String) {
+    /// - Parameter displayID: The unique ID of the display switched to
+    nonisolated func record(switchTo displayID: String) {
         queue.async { [weak self] in
             guard let self = self else { return }
 
             let elapsed = Date().timeIntervalSince(self.startTime)
-            if let cur = self.currentName {
+            if let cur = self.currentDisplayID {
                 self.internalData[cur, default: 0] += elapsed
             }
-            self.currentName = name
+            self.currentDisplayID = displayID
             self.startTime = Date()
             self.internalSwitches += 1
 
@@ -97,14 +97,14 @@ final class StatsManager: ObservableObject {
             // Debounced save to reduce disk I/O
             self.scheduleSave()
 
-            logger.debug("Recorded switch to '\(name)', total switches: \(newSwitches)")
+            logger.debug("Recorded switch to display '\(displayID)', total switches: \(newSwitches)")
         }
     }
 
     /// Flush current session time (call before app terminates)
     nonisolated func flush() {
         queue.sync { [weak self] in
-            guard let self = self, let cur = self.currentName else { return }
+            guard let self = self, let cur = self.currentDisplayID else { return }
 
             let elapsed = Date().timeIntervalSince(self.startTime)
             self.internalData[cur, default: 0] += elapsed
@@ -119,7 +119,7 @@ final class StatsManager: ObservableObject {
 
             self.saveInternal()
 
-            logger.info("Flushed stats for '\(cur)' with \(elapsed)s elapsed")
+            logger.info("Flushed stats for display '\(cur)' with \(elapsed)s elapsed")
         }
     }
 

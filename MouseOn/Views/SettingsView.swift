@@ -68,8 +68,8 @@ struct AppearanceTab: View {
                 emojiModeSection
             }
 
-            // Color mode
-            Section("Display Colors") {
+            // Color
+            Section("Color") {
                 colorModeSection
             }
 
@@ -127,41 +127,22 @@ struct AppearanceTab: View {
 
     @ViewBuilder
     private var colorModeSection: some View {
-        Toggle(
-            "Use single accent color for all displays",
-            isOn: $settings.useSingleAccentColor
-        )
-        .accessibilityIdentifier("singleAccentColorToggle")
-
-        if settings.useSingleAccentColor {
-            ColorPicker(
-                "Accent color",
-                selection: Binding(
-                    get: { Color(hex: settings.singleAccentColor) ?? .accentColor },
-                    set: { settings.singleAccentColor = $0.toHex() ?? Constants.Defaults.accentColor }
-                )
+        ColorPicker(
+            "Menu bar text color",
+            selection: Binding(
+                get: { Color(hex: settings.singleAccentColor) ?? .accentColor },
+                set: { settings.singleAccentColor = $0.toHex() ?? Constants.Defaults.accentColor }
             )
-            .accessibilityIdentifier("accentColorPicker")
-        } else {
-            Text("Configure per-display colors in the Displays tab")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
+        )
+        .accessibilityIdentifier("accentColorPicker")
     }
 
-    @ViewBuilder
     private var emojiModeSection: some View {
         Toggle(
             "Show emoji instead of display name",
             isOn: $settings.features.emojiModeEnabled
         )
         .accessibilityIdentifier("emojiModeToggle")
-
-        if settings.features.emojiModeEnabled {
-            Text("Set an emoji for each display in the Displays tab")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
     }
 
     @ViewBuilder
@@ -409,17 +390,11 @@ struct DisplaysTab: View {
     }
 
     private var universalControlSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("When your cursor moves to an iPad via Universal Control, it will show this name:")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            DisplayRow(
-                displayName: "iPad (via Universal Control)",
-                displayID: Constants.SpecialKeys.universalControl,
-                icon: "ipad"
-            )
-        }
+        DisplayRow(
+            displayName: "iPad (Universal Control)",
+            displayID: Constants.SpecialKeys.universalControl,
+            icon: "ipad"
+        )
     }
 }
 
@@ -459,10 +434,6 @@ struct MoreTab: View {
                     Label("About MouseOn", systemImage: "info.circle")
                 }
                 .buttonStyle(.link)
-
-                Link(destination: URL(string: "https://github.com/Omarabiakar18/MouseOn")!) {
-                    Label("GitHub Repository", systemImage: "link")
-                }
             }
         }
         .formStyle(.grouped)
@@ -471,7 +442,7 @@ struct MoreTab: View {
 
 // MARK: - Display Row
 
-/// A row for configuring a single display's alias and color
+/// A row for configuring a single display's custom name
 struct DisplayRow: View {
     @EnvironmentObject var settings: SettingsStore
 
@@ -492,13 +463,6 @@ struct DisplayRow: View {
         )
     }
 
-    private var colorBinding: Binding<Color> {
-        Binding(
-            get: { settings.colorForDisplay(displayID) ?? .primary },
-            set: { settings.displayColors[displayID] = $0.toHex() }
-        )
-    }
-
     private var emojiBinding: Binding<String> {
         Binding(
             get: { settings.displayEmojis[displayID] ?? "" },
@@ -515,61 +479,40 @@ struct DisplayRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                // Display info
-                HStack(spacing: 6) {
-                    if let icon = icon {
-                        Image(systemName: icon)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(displayName)
-                        .lineLimit(1)
+        HStack(spacing: 12) {
+            // Display name with optional icon
+            HStack(spacing: 6) {
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .foregroundColor(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Color picker
-                ColorPicker("", selection: colorBinding)
-                    .labelsHidden()
-                    .frame(width: 32)
-                    .accessibilityLabel("Color for \(displayName)")
+                Text(displayName)
+                    .lineLimit(1)
             }
 
-            HStack(spacing: 8) {
-                // Emoji field (for emoji mode)
-                HStack(spacing: 4) {
-                    Text("Emoji:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    TextField("🖥️", text: emojiBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 44)
-                        .accessibilityLabel("Emoji for \(displayName)")
-                    Button {
-                        NSApp.orderFrontCharacterPalette(nil)
-                    } label: {
-                        Image(systemName: "face.smiling")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Open Emoji Picker")
-                }
+            Spacer()
 
-                Spacer()
+            // Custom name input with emoji picker on right
+            HStack(spacing: 6) {
+                TextField("", text: nameBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .frame(width: 140)
+                    .accessibilityLabel("Custom name for \(displayName)")
 
-                // Alias field
-                HStack(spacing: 4) {
-                    Text("Alias:")
-                        .font(.caption)
+                Button {
+                    NSApp.orderFrontCharacterPalette(nil)
+                } label: {
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 16))
                         .foregroundColor(.secondary)
-                    TextField("Custom name", text: nameBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 110)
-                        .accessibilityLabel("Alias for \(displayName)")
                 }
+                .buttonStyle(.plain)
+                .help("Choose emoji")
+                .accessibilityLabel("Emoji picker for \(displayName)")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 }
 

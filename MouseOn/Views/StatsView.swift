@@ -20,12 +20,15 @@ import SwiftUI
 /// - Reset functionality with confirmation
 struct StatsView: View {
     @EnvironmentObject var stats: StatsManager
+    @EnvironmentObject var settings: SettingsStore
     @State private var showResetConfirm = false
 
     /// Pre-computed stats data to avoid O(n²) complexity
     /// Computed once per body evaluation instead of once per row
     private var computedStats: ComputedStatsData {
-        ComputedStatsData(data: stats.data)
+        ComputedStatsData(data: stats.data) { displayID in
+            settings.displayName(for: displayID)
+        }
     }
 
     var body: some View {
@@ -171,17 +174,19 @@ private struct ComputedStatsData {
     let totalTime: TimeInterval
     let sortedEntries: [StatsEntry]
 
-    init(data: [String: TimeInterval]) {
+    init(data: [String: TimeInterval], nameResolver: (String) -> String) {
         // Compute total time once
         let total = data.values.reduce(0, +)
         self.totalTime = total
 
         // Sort once and compute percentages in a single pass
+        // Resolve display IDs to user-friendly names
         self.sortedEntries = data
             .sorted { $0.value > $1.value }
-            .map { name, seconds in
+            .map { displayID, seconds in
                 let percentage = total > 0 ? (seconds / total) * 100 : 0
-                return StatsEntry(name: name, seconds: seconds, percentage: percentage)
+                let displayName = nameResolver(displayID)
+                return StatsEntry(id: displayID, name: displayName, seconds: seconds, percentage: percentage)
             }
     }
 }
@@ -193,8 +198,8 @@ struct StatsEntry: Identifiable {
     let seconds: TimeInterval
     let percentage: Double
 
-    init(name: String, seconds: TimeInterval, percentage: Double) {
-        self.id = name
+    init(id: String, name: String, seconds: TimeInterval, percentage: Double) {
+        self.id = id
         self.name = name
         self.seconds = seconds
         self.percentage = percentage
@@ -288,13 +293,19 @@ struct StatsView_Previews: PreviewProvider {
             // With data
             StatsView()
                 .environmentObject(makePreviewStats())
+                .environmentObject(makePreviewSettings())
                 .previewDisplayName("With Data")
 
             // Empty state
             StatsView()
                 .environmentObject(StatsManager())
+                .environmentObject(makePreviewSettings())
                 .previewDisplayName("Empty")
         }
+    }
+
+    static func makePreviewSettings() -> SettingsStore {
+        SettingsStore(defaults: UserDefaults(suiteName: "preview")!)
     }
 
     static func makePreviewStats() -> StatsManager {

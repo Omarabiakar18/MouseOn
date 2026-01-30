@@ -146,8 +146,8 @@ struct MouseOnShortcuts: AppShortcutsProvider {
             intent: FindMyCursorIntent(),
             phrases: [
                 "Find my cursor with \(.applicationName)",
-                "Where is my cursor",
-                "Highlight cursor"
+                "Where is my cursor in \(.applicationName)",
+                "Highlight cursor with \(.applicationName)"
             ],
             shortTitle: "Find Cursor",
             systemImageName: "cursorarrow.rays"
@@ -156,9 +156,9 @@ struct MouseOnShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: GetCurrentDisplayIntent(),
             phrases: [
-                "What display am I on",
+                "What display am I on with \(.applicationName)",
                 "Get current display with \(.applicationName)",
-                "Which screen is my cursor on"
+                "Which screen is my cursor on in \(.applicationName)"
             ],
             shortTitle: "Current Display",
             systemImageName: "display"
@@ -168,8 +168,8 @@ struct MouseOnShortcuts: AppShortcutsProvider {
             intent: ShowLargeCursorIntent(),
             phrases: [
                 "Show large cursor with \(.applicationName)",
-                "Make cursor bigger",
-                "Enlarge cursor"
+                "Make cursor bigger with \(.applicationName)",
+                "Enlarge cursor with \(.applicationName)"
             ],
             shortTitle: "Large Cursor",
             systemImageName: "arrow.up.left.and.arrow.down.right"
@@ -179,8 +179,8 @@ struct MouseOnShortcuts: AppShortcutsProvider {
             intent: ListDisplaysIntent(),
             phrases: [
                 "List my displays with \(.applicationName)",
-                "What displays are connected",
-                "Show connected screens"
+                "What displays are connected in \(.applicationName)",
+                "Show connected screens with \(.applicationName)"
             ],
             shortTitle: "List Displays",
             systemImageName: "display.2"

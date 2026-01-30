@@ -139,6 +139,7 @@ struct MouseOnApp: App {
         Window("Stats", id: "stats") {
             StatsView()
                 .environmentObject(dependencies.stats)
+                .environmentObject(dependencies.settings)
         }
         .defaultSize(width: 480, height: 300)
 
@@ -160,35 +161,38 @@ struct MouseOnApp: App {
 
     @ViewBuilder
     private var menuContent: some View {
-        // Find My Cursor - useful quick action
-        Button("Find My Cursor") {
-            CursorHighlighter.shared.highlight(
-                color: dependencies.settings.getHighlightNSColor()
-            )
+        VStack(spacing: 4) {
+            // Find My Cursor - useful quick action
+            Button("Find My Cursor") {
+                CursorHighlighter.shared.highlight(
+                    color: dependencies.settings.getHighlightNSColor()
+                )
+            }
+            .keyboardShortcut("f", modifiers: [.option, .command])
+            .accessibilityIdentifier("findCursorButton")
+            .accessibilityLabel("Find My Cursor")
+            .accessibilityHint("Shows an animated highlight around your cursor. Shortcut: Option Command F")
+
+            Divider()
+
+            Button("Settings...") {
+                openWindow(id: "settings")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+            .accessibilityIdentifier("settingsButton")
+
+            Divider()
+
+            Button("Quit MouseOn") {
+                logger.info("User initiated quit")
+                dependencies.stats.flush()
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q", modifiers: .command)
+            .accessibilityIdentifier("quitButton")
         }
-        .keyboardShortcut("f", modifiers: [.option, .command])
-        .accessibilityIdentifier("findCursorButton")
-        .accessibilityLabel("Find My Cursor")
-        .accessibilityHint("Shows an animated highlight around your cursor. Shortcut: Option Command F")
-
-        Divider()
-
-        Button("Settings...") {
-            openWindow(id: "settings")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .keyboardShortcut(",", modifiers: .command)
-        .accessibilityIdentifier("settingsButton")
-
-        Divider()
-
-        Button("Quit MouseOn") {
-            logger.info("User initiated quit")
-            dependencies.stats.flush()
-            NSApplication.shared.terminate(nil)
-        }
-        .keyboardShortcut("q", modifiers: .command)
-        .accessibilityIdentifier("quitButton")
+        .padding(16)
     }
 }
 

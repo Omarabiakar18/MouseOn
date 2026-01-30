@@ -196,12 +196,16 @@ final class DisplayTracker: ObservableObject {
     private func setupMouseMonitors() {
         // Track mouse globally (when other apps are focused)
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
-            self?.updateCurrentDisplay()
+            Task { @MainActor in
+                self?.updateCurrentDisplay()
+            }
         }
 
         // Track mouse locally (when our app windows are focused)
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] evt in
-            self?.updateCurrentDisplay()
+            Task { @MainActor in
+                self?.updateCurrentDisplay()
+            }
             return evt
         }
 
@@ -462,7 +466,10 @@ final class DisplayTracker: ObservableObject {
         lastDisplayID = id
         currentName = name
         currentDisplayID = id
-        stats?.record(switchTo: name)
+
+        // Record stats by display ID (use special key for Universal Control)
+        let statsKey = id.map { String($0) } ?? Constants.SpecialKeys.universalControl
+        stats?.record(switchTo: statsKey)
 
         // Announce to VoiceOver users
         AccessibilityAnnouncer.shared.announceDisplayChange(name)

@@ -52,7 +52,11 @@ final class AutoHideManager: ObservableObject {
     }
 
     deinit {
-        stopMonitoring()
+        // Inline cleanup to avoid calling @MainActor method from deinit
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        hideTimer?.invalidate()
     }
 
     // MARK: - Setup
