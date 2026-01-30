@@ -33,6 +33,8 @@ final class SettingsStore: ObservableObject {
     @Published var singleAccentColor: String = Constants.Defaults.accentColor
     @Published var highlightColor: String = Constants.Defaults.highlightColor
     @Published var findCursorHotkeyEnabled: Bool = true
+    @Published var largeCursorDuration: Double = Constants.Defaults.largeCursorDuration
+    @Published var largeCursorSize: Double = Constants.Defaults.largeCursorSize
 
     // MARK: - Private Properties
 
@@ -109,6 +111,17 @@ final class SettingsStore: ObservableObject {
             findCursorHotkeyEnabled = defaults.bool(forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
         }
 
+        // Load large cursor settings
+        let storedDuration = defaults.double(forKey: Constants.UserDefaultsKeys.largeCursorDuration)
+        largeCursorDuration = storedDuration == 0
+            ? Constants.Defaults.largeCursorDuration
+            : storedDuration.clamped(to: Constants.Defaults.largeCursorDurationRange)
+
+        let storedSize = defaults.double(forKey: Constants.UserDefaultsKeys.largeCursorSize)
+        largeCursorSize = storedSize == 0
+            ? Constants.Defaults.largeCursorSize
+            : storedSize.clamped(to: Constants.Defaults.largeCursorSizeRange)
+
         logger.info("Settings loaded successfully")
     }
 
@@ -132,6 +145,8 @@ final class SettingsStore: ObservableObject {
         defaults.set(singleAccentColor, forKey: Constants.UserDefaultsKeys.singleAccentColor)
         defaults.set(highlightColor, forKey: Constants.UserDefaultsKeys.highlightColor)
         defaults.set(findCursorHotkeyEnabled, forKey: Constants.UserDefaultsKeys.findCursorHotkeyEnabled)
+        defaults.set(largeCursorDuration, forKey: Constants.UserDefaultsKeys.largeCursorDuration)
+        defaults.set(largeCursorSize, forKey: Constants.UserDefaultsKeys.largeCursorSize)
 
         logger.info("Settings saved successfully")
     }

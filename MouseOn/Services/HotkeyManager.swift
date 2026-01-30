@@ -91,21 +91,38 @@ final class HotkeyManager {
     }
 
     private func handleKeyEvent(_ event: NSEvent) {
-        // Check for ⌥⌘F (Option + Command + F) first (quick check, no main actor needed)
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let isOptionCommand = modifiers == [.option, .command]
-        let isF = event.charactersIgnoringModifiers?.lowercased() == "f"
+        let key = event.charactersIgnoringModifiers?.lowercased()
 
-        guard isOptionCommand && isF else { return }
+        guard isOptionCommand else { return }
 
-        // Dispatch to main actor since SettingsStore is @MainActor
-        // and CursorHighlighter requires main thread
-        Task { @MainActor in
-            guard self.settings?.findCursorHotkeyEnabled == true else { return }
+        // Handle ⌥⌘F (Find My Cursor)
+        if key == "f" {
+            Task { @MainActor in
+                guard self.settings?.findCursorHotkeyEnabled == true else { return }
 
-            logger.debug("Find cursor hotkey triggered")
-            let color = self.settings?.getHighlightNSColor() ?? .systemOrange
-            CursorHighlighter.shared.highlight(color: color)
+                logger.debug("Find cursor hotkey triggered")
+                let color = self.settings?.getHighlightNSColor() ?? .systemOrange
+                CursorHighlighter.shared.highlight(color: color)
+            }
+            return
+        }
+
+        // Handle ⌥⌘L (Large Cursor Mode)
+        if key == "l" {
+            Task { @MainActor in
+                guard self.settings?.features.largeCursorEnabled == true else { return }
+
+                logger.debug("Large cursor hotkey triggered")
+                let duration = self.settings?.largeCursorDuration ?? Constants.Defaults.largeCursorDuration
+                let size = self.settings?.largeCursorSize ?? Constants.Defaults.largeCursorSize
+
+                LargeCursorManager.shared.sizeMultiplier = CGFloat(size)
+                LargeCursorManager.shared.displayDuration = duration
+                LargeCursorManager.shared.showLargeCursor()
+            }
+            return
         }
     }
 }

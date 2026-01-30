@@ -19,4 +19,7 @@ struct FeatureToggles: Codable {
 
     /// Whether statistics collection is enabled
     var statsEnabled: Bool = true
+
+    /// Whether large cursor mode hotkey is enabled
+    var largeCursorEnabled: Bool = true
 }
