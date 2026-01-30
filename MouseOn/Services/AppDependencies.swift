@@ -26,6 +26,7 @@ protocol AppDependenciesProtocol {
     var launchAtLogin: LaunchAtLoginManager { get }
     var powerMonitor: PowerStateMonitor { get }
     var accessibilityManager: AccessibilityManager { get }
+    var autoHide: AutoHideManager { get }
 }
 
 // MARK: - App Dependencies
@@ -46,6 +47,7 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
     let launchAtLogin: LaunchAtLoginManager
     let powerMonitor: PowerStateMonitor
     let accessibilityManager: AccessibilityManager
+    let autoHide: AutoHideManager
 
     // MARK: - Private
 
@@ -79,8 +81,14 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
         // Create accessibility manager
         self.accessibilityManager = AccessibilityManager()
 
+        // Create auto-hide manager (depends on settings)
+        self.autoHide = AutoHideManager(settings: self.settings)
+
         // Wire up dependencies
         setupBindings()
+
+        // Forward auto-hide visibility changes to trigger view updates
+        setupAutoHideBinding()
 
         // Check accessibility permissions on startup
         checkAccessibilityPermissions()
@@ -135,6 +143,16 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
             self?.stats.flush()
         }
     }
+
+    private func setupAutoHideBinding() {
+        // Forward autoHide visibility changes to trigger SwiftUI view updates
+        autoHide.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
 }
 
 // MARK: - Preview Dependencies
@@ -150,6 +168,7 @@ final class PreviewDependencies: AppDependenciesProtocol {
     let launchAtLogin = LaunchAtLoginManager()
     let powerMonitor = PowerStateMonitor()
     let accessibilityManager = AccessibilityManager()
+    let autoHide: AutoHideManager
 
     init() {
         // Setup some preview data
@@ -157,6 +176,9 @@ final class PreviewDependencies: AppDependenciesProtocol {
         settings.aliases["2"] = "Studio Display"
         settings.displayColors["1"] = "#007AFF"
         settings.displayColors["2"] = "#FF9500"
+
+        // Initialize auto-hide with preview settings
+        autoHide = AutoHideManager(settings: settings)
     }
 }
 #endif

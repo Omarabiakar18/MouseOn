@@ -81,6 +81,13 @@ struct MouseOnApp: App {
         return dependencies.settings.colorForDisplay(displayKey) ?? .primary
     }
 
+    /// Combined opacity: user setting × auto-hide visibility
+    private var menuBarOpacity: Double {
+        let baseOpacity = dependencies.settings.opacity
+        let visibilityOpacity = dependencies.autoHide.isVisible ? 1.0 : 0.0
+        return baseOpacity * visibilityOpacity
+    }
+
     // MARK: - Body
 
     var body: some Scene {
@@ -90,7 +97,7 @@ struct MouseOnApp: App {
         } label: {
             Text(truncatedName)
                 .foregroundColor(currentDisplayColor)
-                .opacity(dependencies.settings.opacity)
+                .opacity(menuBarOpacity)
                 .onAppear {
                     logger.debug("Menu bar item appeared")
                 }
