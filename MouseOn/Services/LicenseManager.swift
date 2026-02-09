@@ -17,16 +17,17 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "LicenseMana
 
 // MARK: - Paddle API Configuration
 
-// TODO: Replace with actual Paddle credentials
-private let PADDLE_VENDOR_ID = "REPLACE_ME"
-private let PADDLE_VENDOR_AUTH_CODE = "REPLACE_ME"
+// MARK: - License API Configuration
+// Points to our own licensing backend (NOT Paddle directly).
+// Paddle Billing doesn't have built-in license management — we handle it ourselves.
+// Our backend receives Paddle webhooks and manages license state.
 
-// TODO: Replace with actual Paddle endpoints when verified
-private enum PaddleAPI {
-    static let verifyPurchase = "https://vendors.paddle.com/api/2.0/product/verify_purchase"
-    static let activateDevice = "https://vendors.paddle.com/api/2.0/product/activate_license"
-    static let deactivateDevice = "https://vendors.paddle.com/api/2.0/product/deactivate_license"
-    static let getLicenseInfo = "https://vendors.paddle.com/api/2.0/product/get_license_usage"
+// TODO: Replace with actual production URL when deployed
+private enum LicenseAPI {
+    static let baseURL = "https://mouse-on.com/api/license"  // TODO: Update when backend is deployed
+    static let validate = "\(baseURL)/validate"
+    static let activate = "\(baseURL)/activate"
+    static let deactivate = "\(baseURL)/deactivate"
 }
 
 // MARK: - License Error
@@ -47,15 +48,15 @@ enum LicenseError: LocalizedError {
         case .invalidEmail:
             return "Please enter a valid email address."
         case .tooManyDevices:
-            return "Maximum devices reached (3/3). Deactivate another device first."
-        case .networkError(let message):
-            return "Network error: \(message)"
+            return "Maximum devices reached (3/3). Deactivate another device in Settings first."
+        case .networkError:
+            return "Unable to connect. Please check your internet connection and try again."
         case .apiError(let message):
-            return "API error: \(message)"
-        case .keychainError(let message):
-            return "Keychain error: \(message)"
+            return "Something went wrong: \(message)"
+        case .keychainError:
+            return "Unable to save license data. Please try again."
         case .hardwareIDUnavailable:
-            return "Unable to read hardware identifier."
+            return "Unable to identify this Mac. Please contact support."
         }
     }
 }
@@ -138,7 +139,7 @@ final class LicenseManager: ObservableObject {
     /// Get the Mac's hardware UUID (IOPlatformUUID)
     static func getHardwareUUID() -> String? {
         let service = IOServiceGetMatchingService(
-            kIOMasterPortDefault,
+            kIOMainPortDefault,
             IOServiceMatching("IOPlatformExpertDevice")
         )
         guard service != 0 else { return nil }
@@ -297,18 +298,38 @@ final class LicenseManager: ObservableObject {
 
     // MARK: - Paddle API Calls
 
-    /// Verify that a purchase exists for this email
-    private func verifyPurchase(email: String) async throws {
-        let url = URL(string: PaddleAPI.verifyPurchase)!
+    // MARK: - API Response Parsing
+
+    /// Standard response from our license backend
+    private struct APIResponse {
+        let success: Bool
+        let error: String?
+        let activatedDevices: Int
+        let maxDevices: Int
+
+        init(from data: Data) throws {
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw LicenseError.apiError("Invalid response format")
+            }
+
+            self.success = json["valid"] as? Bool ?? json["success"] as? Bool ?? false
+            self.error = json["error"] as? String
+            self.activatedDevices = json["activated_devices"] as? Int ?? 0
+            self.maxDevices = json["max_devices"] as? Int ?? 3
+        }
+    }
+
+    /// Make a POST request to our license backend
+    private func apiRequest(endpoint: String, body: [String: Any]) async throws -> (Data, HTTPURLResponse) {
+        guard let url = URL(string: endpoint) else {
+            throw LicenseError.apiError("Invalid endpoint URL")
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
 
-        let body: [String: Any] = [
-            "vendor_id": PADDLE_VENDOR_ID,
-            "vendor_auth_code": PADDLE_VENDOR_AUTH_CODE,
-            "email": email
-        ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -317,121 +338,98 @@ final class LicenseManager: ObservableObject {
             throw LicenseError.networkError("Invalid response")
         }
 
+        return (data, httpResponse)
+    }
+
+    /// Verify that a purchase exists for this email
+    private func verifyPurchase(email: String) async throws {
+        guard let hardwareUUID = Self.getHardwareUUID() else {
+            throw LicenseError.hardwareIDUnavailable
+        }
+
+        let (data, httpResponse) = try await apiRequest(
+            endpoint: LicenseAPI.validate,
+            body: ["email": email, "hardware_uuid": hardwareUUID]
+        )
+
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 404 {
+                throw LicenseError.noPurchaseFound
+            }
             throw LicenseError.networkError("HTTP \(httpResponse.statusCode)")
         }
 
-        // Parse response
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = json["success"] as? Bool else {
-            throw LicenseError.apiError("Unexpected response format")
-        }
+        let apiResponse = try APIResponse(from: data)
 
-        if !success {
-            let message = (json["error"] as? [String: Any])?["message"] as? String
-            if message?.lowercased().contains("no purchase") == true || message?.lowercased().contains("not found") == true {
+        if !apiResponse.success {
+            if let error = apiResponse.error, error.lowercased().contains("no purchase") {
                 throw LicenseError.noPurchaseFound
             }
-            throw LicenseError.apiError(message ?? "Unknown error")
+            throw LicenseError.apiError(apiResponse.error ?? "Validation failed")
         }
     }
 
-    /// Activate a device (register hardware UUID with Paddle)
+    /// Activate a device (register hardware UUID with our backend)
     private func activateDevice(email: String, hardwareUUID: String) async throws -> DeviceUsageInfo {
-        let url = URL(string: PaddleAPI.activateDevice)!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let (data, httpResponse) = try await apiRequest(
+            endpoint: LicenseAPI.activate,
+            body: ["email": email, "hardware_uuid": hardwareUUID]
+        )
 
-        let body: [String: Any] = [
-            "vendor_id": PADDLE_VENDOR_ID,
-            "vendor_auth_code": PADDLE_VENDOR_AUTH_CODE,
-            "email": email,
-            "machine_id": hardwareUUID
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw LicenseError.networkError("Failed to activate device")
-        }
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let success = json["success"] as? Bool else {
-            throw LicenseError.apiError("Unexpected response format")
-        }
-
-        if !success {
-            let message = (json["error"] as? [String: Any])?["message"] as? String
-            if message?.lowercased().contains("limit") == true || message?.lowercased().contains("maximum") == true {
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 409 {
                 throw LicenseError.tooManyDevices
             }
-            throw LicenseError.apiError(message ?? "Activation failed")
+            throw LicenseError.networkError("HTTP \(httpResponse.statusCode)")
         }
 
-        // Parse usage info from response
-        let responseData = json["response"] as? [String: Any]
-        let activated = responseData?["activated"] as? Int ?? 1
-        let maxDevices = responseData?["max"] as? Int ?? 3
+        let apiResponse = try APIResponse(from: data)
 
-        return DeviceUsageInfo(activatedDevices: activated, maxDevices: maxDevices)
+        if !apiResponse.success {
+            if let error = apiResponse.error, error.lowercased().contains("limit") || error.lowercased().contains("maximum") {
+                throw LicenseError.tooManyDevices
+            }
+            throw LicenseError.apiError(apiResponse.error ?? "Activation failed")
+        }
+
+        return DeviceUsageInfo(
+            activatedDevices: apiResponse.activatedDevices,
+            maxDevices: apiResponse.maxDevices
+        )
     }
 
     /// Deactivate a device (unregister hardware UUID)
     private func deactivateDevice(email: String, hardwareUUID: String) async throws {
-        let url = URL(string: PaddleAPI.deactivateDevice)!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let (_, httpResponse) = try await apiRequest(
+            endpoint: LicenseAPI.deactivate,
+            body: ["email": email, "hardware_uuid": hardwareUUID]
+        )
 
-        let body: [String: Any] = [
-            "vendor_id": PADDLE_VENDOR_ID,
-            "vendor_auth_code": PADDLE_VENDOR_AUTH_CODE,
-            "email": email,
-            "machine_id": hardwareUUID
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (_, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard httpResponse.statusCode == 200 else {
             throw LicenseError.networkError("Failed to deactivate device")
         }
     }
 
-    /// Fetch device usage info
+    /// Fetch device usage info (uses validate endpoint)
     private func fetchDeviceUsage(email: String) async throws -> DeviceUsageInfo {
-        let url = URL(string: PaddleAPI.getLicenseInfo)!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        guard let hardwareUUID = Self.getHardwareUUID() else {
+            throw LicenseError.hardwareIDUnavailable
+        }
 
-        let body: [String: Any] = [
-            "vendor_id": PADDLE_VENDOR_ID,
-            "vendor_auth_code": PADDLE_VENDOR_AUTH_CODE,
-            "email": email
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, httpResponse) = try await apiRequest(
+            endpoint: LicenseAPI.validate,
+            body: ["email": email, "hardware_uuid": hardwareUUID]
+        )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard httpResponse.statusCode == 200 else {
             throw LicenseError.networkError("Failed to fetch usage info")
         }
 
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let responseData = json["response"] as? [String: Any] else {
-            throw LicenseError.apiError("Unexpected response format")
-        }
-
-        let activated = responseData["activated"] as? Int ?? 0
-        let maxDevices = responseData["max"] as? Int ?? 3
-
-        return DeviceUsageInfo(activatedDevices: activated, maxDevices: maxDevices)
+        let apiResponse = try APIResponse(from: data)
+        return DeviceUsageInfo(
+            activatedDevices: apiResponse.activatedDevices,
+            maxDevices: apiResponse.maxDevices
+        )
     }
 
     // MARK: - Keychain Storage
