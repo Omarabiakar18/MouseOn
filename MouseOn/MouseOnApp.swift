@@ -42,6 +42,9 @@ struct MouseOnApp: App {
     /// Central dependency container managing all services
     @StateObject private var dependencies = AppDependencies()
 
+    /// License manager for activation gating
+    @ObservedObject private var licenseManager = LicenseManager.shared
+
     // MARK: - Environment
 
     @Environment(\.openWindow) private var openWindow
@@ -111,9 +114,22 @@ struct MouseOnApp: App {
     // MARK: - Body
 
     var body: some Scene {
+        // License activation window (shown when not licensed)
+        Window("Activate MouseOn", id: "license") {
+            LicenseView {
+                // On successful activation, this closure fires
+                // The @ObservedObject licenseManager will update isLicensed
+            }
+        }
+        .windowResizability(.contentSize)
+
         // Menu Bar Extra
         MenuBarExtra {
-            menuContent
+            if licenseManager.isLicensed {
+                menuContent
+            } else {
+                unlicensedMenuContent
+            }
         } label: {
             Text(truncatedName)
                 .foregroundColor(currentDisplayColor)
@@ -122,6 +138,15 @@ struct MouseOnApp: App {
                 .accessibilityHint("Click to open MouseOn menu")
                 .onAppear {
                     logger.debug("Menu bar item appeared")
+                    // Trigger license revalidation check on app appear
+                    Task {
+                        await licenseManager.revalidate()
+                    }
+                    // Show license window if not activated
+                    if !licenseManager.isLicensed {
+                        openWindow(id: "license")
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
                 }
         }
         .menuBarExtraStyle(.window)
@@ -155,6 +180,36 @@ struct MouseOnApp: App {
             AboutView()
         }
         .windowResizability(.contentSize)
+    }
+
+    // MARK: - Unlicensed Menu Content
+
+    @ViewBuilder
+    private var unlicensedMenuContent: some View {
+        VStack(spacing: 4) {
+            Text("MouseOn — Not Activated")
+                .font(.headline)
+
+            Text("Please activate your license to use MouseOn.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Divider()
+
+            Button("Activate License...") {
+                openWindow(id: "license")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .accessibilityIdentifier("activateLicenseButton")
+
+            Divider()
+
+            Button("Quit MouseOn") {
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q", modifiers: .command)
+        }
+        .padding(16)
     }
 
     // MARK: - Menu Content

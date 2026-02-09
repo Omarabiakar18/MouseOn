@@ -35,6 +35,10 @@ struct SettingsView: View {
                 .tabItem { Label("Displays", systemImage: "display.2") }
                 .accessibilityIdentifier("displaysTab")
 
+            LicenseSettingsView()
+                .tabItem { Label("License", systemImage: "key") }
+                .accessibilityIdentifier("licenseTab")
+
             MoreTab(openWindow: openWindow)
                 .tabItem { Label("More", systemImage: "ellipsis.circle") }
                 .accessibilityIdentifier("moreTab")
