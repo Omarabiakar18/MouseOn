@@ -96,15 +96,22 @@ jobs:
           
           mkdir -p dist
           
-          # Create a nice DMG with Applications symlink
+          # Create a Finder alias (not symlink) to /Applications so the folder icon renders
+          osascript -e 'tell application "Finder"
+            set a to make alias file to POSIX file "/Applications" at POSIX file "'"$(pwd)/build/Export"'"
+            set name of a to "Applications"
+          end tell' || ln -sfn /Applications "build/Export/Applications"
+
+          # Create a styled DMG with background, proper layout, and Applications symlink
           create-dmg \
             --volname "$APP_NAME" \
+            --background "dmg-resources/background@2x.png" \
             --window-pos 200 120 \
-            --window-size 600 400 \
-            --icon-size 100 \
+            --window-size 660 400 \
+            --icon-size 128 \
             --icon "$APP_NAME.app" 150 190 \
             --hide-extension "$APP_NAME.app" \
-            --app-drop-link 450 190 \
+            --icon "Applications" 510 190 \
             "dist/${DMG_NAME}.dmg" \
             "build/Export/" \
             || true

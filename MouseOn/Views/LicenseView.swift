@@ -83,7 +83,6 @@ struct LicenseView: View {
 
             TextField("you@example.com", text: $email)
                 .textFieldStyle(.roundedBorder)
-                .textContentType(.emailAddress)
                 .disabled(isActivating || showSuccess)
                 .onSubmit { activateLicense() }
                 .accessibilityLabel("Purchase email address")
