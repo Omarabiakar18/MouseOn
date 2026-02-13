@@ -205,7 +205,7 @@ struct ColorExtensionTests {
     }
 
     @Test("Color to hex produces valid format")
-    func colorToHex() {
+    func colorToHex() throws {
         let color = try #require(Color(hex: "#FF0000"))
         let hex = try #require(color.toHex())
         #expect(hex.hasPrefix("#"))
