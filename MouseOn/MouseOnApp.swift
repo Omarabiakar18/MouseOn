@@ -242,6 +242,23 @@ struct MouseOnApp: App {
             .keyboardShortcut(",", modifiers: .command)
             .accessibilityIdentifier("settingsButton")
 
+            Button("Check for Updates...") {
+                Task {
+                    await UpdateChecker.shared.checkForUpdates()
+                    if UpdateChecker.shared.updateAvailable {
+                        UpdateChecker.shared.openDownloadPage()
+                    } else {
+                        // Show an alert that app is up to date
+                        let alert = NSAlert()
+                        alert.messageText = "You're up to date!"
+                        alert.informativeText = "MouseOn \(UpdateChecker.shared.currentVersion) is the latest version."
+                        alert.alertStyle = .informational
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+            }
+
             Divider()
 
             Button("Quit MouseOn") {
