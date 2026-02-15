@@ -117,8 +117,13 @@ struct MouseOnApp: App {
         // License activation window (shown when not licensed)
         Window("Activate MouseOn", id: "license") {
             LicenseView {
-                // On successful activation, this closure fires
-                // The @ObservedObject licenseManager will update isLicensed
+                // Close license window and open settings
+                DispatchQueue.main.async {
+                    for window in NSApplication.shared.windows where window.title == "Activate MouseOn" {
+                        window.close()
+                    }
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                }
             }
         }
         .windowResizability(.contentSize)
