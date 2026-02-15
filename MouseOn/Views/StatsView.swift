@@ -57,9 +57,9 @@ struct StatsView: View {
         .frame(minWidth: 400, minHeight: 250)
         .alert("Reset Statistics?", isPresented: $showResetConfirm) {
             Button("Cancel", role: .cancel) { }
-            Button("Reset", role: .destructive) { stats.resetStats() }
+            Button("Reset All Data", role: .destructive) { stats.resetStats() }
         } message: {
-            Text("This will permanently delete all tracked display time.")
+            Text("This will permanently delete all tracked display time and switch counts. This action cannot be undone.")
         }
     }
 

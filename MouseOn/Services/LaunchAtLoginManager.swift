@@ -45,8 +45,18 @@ final class LaunchAtLoginManager: ObservableObject {
 
     // MARK: - Initialization
 
+    private static let hasSetDefaultKey = "com.mouseon.launchAtLogin.defaultSet"
+
     init() {
         refreshStatus()
+
+        // On first launch, enable Launch at Login by default
+        if !UserDefaults.standard.bool(forKey: Self.hasSetDefaultKey) {
+            UserDefaults.standard.set(true, forKey: Self.hasSetDefaultKey)
+            if !isEnabled {
+                isEnabled = true
+            }
+        }
     }
 
     // MARK: - Public Methods
