@@ -1,0 +1,76 @@
+name: Build & Deploy DMG
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon runner
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Build app
+        run: |
+          xcodebuild -project MouseOn.xcodeproj \
+            -scheme MouseOn \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
+      - name: Create DMG
+        run: |
+          APP_PATH="build/Build/Products/Release/MouseOn.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "App not found at $APP_PATH"
+            echo "Looking for app..."
+            find build -name "MouseOn.app" -type d
+            exit 1
+          fi
+          
+          # Create a temporary folder for DMG contents
+          mkdir -p dmg-contents
+          cp -R "$APP_PATH" dmg-contents/
+          ln -s /Applications dmg-contents/Applications
+          
+          # Create DMG
+          hdiutil create -volname "MouseOn" \
+            -srcfolder dmg-contents \
+            -ov -format UDZO \
+            MouseOn.dmg
+          
+          echo "DMG created successfully"
+          ls -la MouseOn.dmg
+
+      - name: Upload DMG to server
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          # Set up SSH key
+          mkdir -p ~/.ssh
+          echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Upload DMG
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
+            MouseOn.dmg \
+            root@89.167.43.143:/opt/mouseon-license/MouseOn.dmg
+          
+          echo "DMG deployed to server!"
+
+      - name: Upload DMG as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MouseOn-DMG
+          path: MouseOn.dmg
+          retention-days: 30
