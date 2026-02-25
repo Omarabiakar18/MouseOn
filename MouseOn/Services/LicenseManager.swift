@@ -7,7 +7,8 @@
 //
 
 import Foundation
-import Security
+import CryptoKit
+import Security  // Needed for Keychain migration
 import IOKit
 import os.log
 
@@ -38,7 +39,7 @@ enum LicenseError: LocalizedError {
     case tooManyDevices
     case networkError(String)
     case apiError(String)
-    case keychainError(String)
+    case storageError(String)
     case hardwareIDUnavailable
 
     var errorDescription: String? {
@@ -53,7 +54,7 @@ enum LicenseError: LocalizedError {
             return "Unable to connect. Please check your internet connection and try again."
         case .apiError(let message):
             return "Something went wrong: \(message)"
-        case .keychainError:
+        case .storageError:
             return "Unable to save license data. Please try again."
         case .hardwareIDUnavailable:
             return "Unable to identify this Mac. Please contact support."
@@ -123,14 +124,21 @@ final class LicenseManager: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let keychainService = "com.mouseon.app.license"
-    private let keychainAccount = "activation"
     private var revalidationTimer: Timer?
+
+    /// Application Support directory for persistent license storage
+    private static var licenseFileURL: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("MouseOn", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("license.dat")
+    }
 
     // MARK: - Initialization
 
     private init() {
-        loadFromKeychain()
+        migrateFromKeychainIfNeeded()
+        loadLicense()
         startRevalidationTimer()
     }
 
@@ -187,7 +195,7 @@ final class LicenseManager: ObservableObject {
         // Step 2: Activate this device
         let usage = try await activateDevice(email: trimmed, hardwareUUID: hardwareUUID)
 
-        // Step 3: Store in Keychain
+        // Step 3: Store in Application Support
         let info = LicenseInfo(
             email: trimmed,
             hardwareUUID: hardwareUUID,
@@ -195,7 +203,7 @@ final class LicenseManager: ObservableObject {
             lastValidationDate: Date(),
             consecutiveFailures: 0
         )
-        try saveToKeychain(info)
+        try saveLicense(info)
 
         // Update state
         licenseInfo = info
@@ -217,8 +225,8 @@ final class LicenseManager: ObservableObject {
         // Call Paddle API to deactivate
         try await deactivateDevice(email: info.email, hardwareUUID: info.hardwareUUID)
 
-        // Remove from Keychain
-        deleteFromKeychain()
+        // Remove license file
+        deleteLicense()
 
         // Update state
         licenseInfo = nil
@@ -248,7 +256,7 @@ final class LicenseManager: ObservableObject {
             // Success: reset failures, update validation date
             info.lastValidationDate = Date()
             info.consecutiveFailures = 0
-            try? saveToKeychain(info)
+            try? saveLicense(info)
             licenseInfo = info
             isLicensed = true
 
@@ -256,7 +264,7 @@ final class LicenseManager: ObservableObject {
         } catch {
             // Failure: increment counter
             info.consecutiveFailures += 1
-            try? saveToKeychain(info)
+            try? saveLicense(info)
             licenseInfo = info
 
             if info.isBlocked {
@@ -432,37 +440,76 @@ final class LicenseManager: ObservableObject {
         )
     }
 
-    // MARK: - Keychain Storage
+    // MARK: - Encrypted File Storage
 
-    /// Save license info to Keychain
-    private func saveToKeychain(_ info: LicenseInfo) throws {
-        let data = try JSONEncoder().encode(info)
-
-        // Delete existing item first
-        deleteFromKeychain()
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccount as String: keychainAccount,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
-        ]
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw LicenseError.keychainError("Failed to save: OSStatus \(status)")
-        }
-
-        logger.debug("License info saved to Keychain")
+    /// Derive a symmetric encryption key from the hardware UUID
+    private static func encryptionKey() -> SymmetricKey? {
+        guard let uuid = getHardwareUUID() else { return nil }
+        let hash = SHA256.hash(data: Data(uuid.utf8))
+        return SymmetricKey(data: hash)
     }
 
-    /// Load license info from Keychain
-    private func loadFromKeychain() {
+    /// Save license info to encrypted file in Application Support
+    private func saveLicense(_ info: LicenseInfo) throws {
+        guard let key = Self.encryptionKey() else {
+            throw LicenseError.hardwareIDUnavailable
+        }
+
+        let data = try JSONEncoder().encode(info)
+        let sealed = try AES.GCM.seal(data, using: key)
+
+        guard let combined = sealed.combined else {
+            throw LicenseError.apiError("Encryption failed")
+        }
+
+        try combined.write(to: Self.licenseFileURL)
+        logger.debug("License info saved to Application Support")
+    }
+
+    /// Load license info from encrypted file in Application Support
+    private func loadLicense() {
+        guard let key = Self.encryptionKey() else {
+            logger.debug("Cannot derive encryption key")
+            isLicensed = false
+            return
+        }
+
+        guard let combined = try? Data(contentsOf: Self.licenseFileURL),
+              let box = try? AES.GCM.SealedBox(combined: combined),
+              let data = try? AES.GCM.open(box, using: key),
+              let info = try? JSONDecoder().decode(LicenseInfo.self, from: data) else {
+            logger.debug("No license found in Application Support")
+            isLicensed = false
+            return
+        }
+
+        licenseInfo = info
+        isLicensed = !info.isBlocked
+
+        if info.isBlocked {
+            logger.warning("License is blocked due to failed revalidations")
+        } else {
+            logger.info("License loaded for \(info.email, privacy: .private)")
+        }
+    }
+
+    /// Delete license file
+    private func deleteLicense() {
+        try? FileManager.default.removeItem(at: Self.licenseFileURL)
+    }
+
+    // MARK: - Keychain Migration
+
+    /// One-time migration from Keychain to Application Support (for existing users)
+    private func migrateFromKeychainIfNeeded() {
+        // Skip if we already have a license file
+        if FileManager.default.fileExists(atPath: Self.licenseFileURL.path) { return }
+
+        // Try to read from old Keychain location
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccount as String: keychainAccount,
+            kSecAttrService as String: "com.mouseon.app.license",
+            kSecAttrAccount as String: "activation",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -473,30 +520,22 @@ final class LicenseManager: ObservableObject {
         guard status == errSecSuccess,
               let data = result as? Data,
               let info = try? JSONDecoder().decode(LicenseInfo.self, from: data) else {
-            logger.debug("No license found in Keychain")
-            isLicensed = false
-            return
+            return // No Keychain data to migrate
         }
 
-        licenseInfo = info
-
-        // Licensed unless blocked by too many revalidation failures
-        isLicensed = !info.isBlocked
-
-        if info.isBlocked {
-            logger.warning("License is blocked due to failed revalidations")
-        } else {
-            logger.info("License loaded from Keychain for \(info.email, privacy: .private)")
+        // Save to new location
+        do {
+            try saveLicense(info)
+            // Clean up old Keychain entry
+            let deleteQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: "com.mouseon.app.license",
+                kSecAttrAccount as String: "activation"
+            ]
+            SecItemDelete(deleteQuery as CFDictionary)
+            logger.info("Migrated license from Keychain to Application Support")
+        } catch {
+            logger.warning("Failed to migrate from Keychain: \(error.localizedDescription)")
         }
-    }
-
-    /// Delete license info from Keychain
-    private func deleteFromKeychain() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccount as String: keychainAccount
-        ]
-        SecItemDelete(query as CFDictionary)
     }
 }

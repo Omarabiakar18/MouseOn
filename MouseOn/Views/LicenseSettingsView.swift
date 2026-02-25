@@ -60,12 +60,6 @@ struct LicenseSettingsView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    // Last validated
-                    LabeledContent("Last validated") {
-                        Text(info.lastValidationDate, style: .relative)
-                            .foregroundColor(.secondary)
-                    }
-
                     // Error message
                     if let errorMessage {
                         HStack(spacing: 6) {

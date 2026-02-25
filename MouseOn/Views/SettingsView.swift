@@ -67,11 +67,6 @@ struct AppearanceTab: View {
                 opacitySection
             }
 
-            // Emoji mode
-            Section("Emoji Mode") {
-                emojiModeSection
-            }
-
             // Color
             Section("Color") {
                 colorModeSection
@@ -139,14 +134,6 @@ struct AppearanceTab: View {
             )
         )
         .accessibilityIdentifier("accentColorPicker")
-    }
-
-    private var emojiModeSection: some View {
-        Toggle(
-            "Show emoji instead of display name",
-            isOn: $settings.features.emojiModeEnabled
-        )
-        .accessibilityIdentifier("emojiModeToggle")
     }
 
     @ViewBuilder
@@ -351,6 +338,21 @@ struct DisplaysTab: View {
 
     var body: some View {
         Form {
+            // Emoji mode toggle
+            Section("Emoji Mode") {
+                Toggle(
+                    "Show emoji instead of display name",
+                    isOn: $settings.features.emojiModeEnabled
+                )
+                .accessibilityIdentifier("emojiModeToggle")
+
+                if settings.features.emojiModeEnabled {
+                    Text("Set an emoji for each display below. The emoji will replace the display name in the menu bar.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             // Connected displays
             Section("Connected Displays") {
                 displaysList
@@ -496,13 +498,22 @@ struct DisplayRow: View {
 
             Spacer()
 
-            // Custom name input with emoji picker on right
+            // Custom name input + emoji
             HStack(spacing: 6) {
-                TextField("", text: nameBinding)
+                if !settings.features.emojiModeEnabled {
+                    TextField("Custom name", text: nameBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.leading)
+                        .frame(width: 140)
+                        .accessibilityLabel("Custom name for \(displayName)")
+                }
+
+                // Emoji picker — always show, but more prominent in emoji mode
+                TextField(settings.features.emojiModeEnabled ? "🖥️" : "", text: emojiBinding)
                     .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
-                    .frame(width: 140)
-                    .accessibilityLabel("Custom name for \(displayName)")
+                    .multilineTextAlignment(.center)
+                    .frame(width: settings.features.emojiModeEnabled ? 60 : 40)
+                    .accessibilityLabel("Emoji for \(displayName)")
 
                 Button {
                     NSApp.orderFrontCharacterPalette(nil)
