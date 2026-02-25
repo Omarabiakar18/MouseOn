@@ -622,7 +622,7 @@ struct LicenseErrorTests {
             .tooManyDevices,
             .networkError("timeout"),
             .apiError("server error"),
-            .keychainError("access denied"),
+            .storageError("access denied"),
             .hardwareIDUnavailable,
         ]
         for error in errors {

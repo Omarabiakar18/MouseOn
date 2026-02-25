@@ -3,11 +3,11 @@ name: Build & Deploy DMG
 on:
   push:
     branches: [main]
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-14 # Apple Silicon runner
+    runs-on: macos-14
     
     steps:
       - name: Checkout
@@ -46,17 +46,14 @@ jobs:
           APP_PATH="build/Build/Products/Release/MouseOn.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "App not found at $APP_PATH"
-            echo "Looking for app..."
             find build -name "MouseOn.app" -type d
             exit 1
           fi
           
-          # Create a temporary folder for DMG contents
           mkdir -p dmg-contents
           cp -R "$APP_PATH" dmg-contents/
           ln -s /Applications dmg-contents/Applications
           
-          # Create DMG
           hdiutil create -volname "MouseOn" \
             -srcfolder dmg-contents \
             -ov -format UDZO \
@@ -69,12 +66,10 @@ jobs:
         env:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
-          # Set up SSH key
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           
-          # Upload DMG
           scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
             MouseOn.dmg \
             root@89.167.43.143:/opt/mouseon-license/MouseOn.dmg
@@ -87,3 +82,53 @@ jobs:
           name: MouseOn-DMG
           path: MouseOn.dmg
           retention-days: 30
+
+      - name: Notify Telegram (Success)
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CICD_CHAT_ID: ${{ secrets.TELEGRAM_CICD_CHAT_ID }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          COMMIT_SHA=$(git log -1 --pretty=format:'%h')
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          AUTHOR="${{ github.actor }}"
+          
+          MESSAGE="🚀 <b>DMG Build & Deploy Successful</b>
+          
+          <b>Commit:</b> <code>${COMMIT_SHA}</code> ${COMMIT_MSG}
+          <b>Author:</b> ${AUTHOR}
+          <b>Tests:</b> ✅ Passed
+          <b>Build:</b> ✅ Release
+          <b>DMG:</b> ✅ Deployed to server
+          
+          <a href=\"${COMMIT_URL}\">View Commit →</a>"
+          
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CICD_CHAT_ID}" \
+            -d text="${MESSAGE}" \
+            -d parse_mode="HTML" \
+            -d disable_web_page_preview="true"
+
+      - name: Notify Telegram (Failure)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CICD_CHAT_ID: ${{ secrets.TELEGRAM_CICD_CHAT_ID }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          COMMIT_SHA=$(git log -1 --pretty=format:'%h')
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          MESSAGE="❌ <b>DMG Build Failed</b>
+          
+          <b>Commit:</b> <code>${COMMIT_SHA}</code> ${COMMIT_MSG}
+          <b>Author:</b> ${{ github.actor }}
+          
+          <a href=\"${RUN_URL}\">View Logs →</a>"
+          
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CICD_CHAT_ID}" \
+            -d text="${MESSAGE}" \
+            -d parse_mode="HTML" \
+            -d disable_web_page_preview="true"
