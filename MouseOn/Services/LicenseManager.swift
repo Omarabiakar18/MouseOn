@@ -127,8 +127,14 @@ final class LicenseManager: ObservableObject {
     private var revalidationTimer: Timer?
 
     /// Application Support directory for persistent license storage
-    private static var licenseFileURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+    private static var licenseFileURL: URL? {
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            logger.error("Application Support directory unavailable")
+            return nil
+        }
         let dir = appSupport.appendingPathComponent("MouseOn", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("license.dat")
@@ -138,6 +144,7 @@ final class LicenseManager: ObservableObject {
 
     private init() {
         migrateFromKeychainIfNeeded()
+        migrateEncryptionKeyIfNeeded()
         loadLicense()
         startRevalidationTimer()
     }
@@ -256,7 +263,11 @@ final class LicenseManager: ObservableObject {
             // Success: reset failures, update validation date
             info.lastValidationDate = Date()
             info.consecutiveFailures = 0
-            try? saveLicense(info)
+            do {
+                try saveLicense(info)
+            } catch {
+                logger.error("Failed to save license after revalidation success: \(error.localizedDescription)")
+            }
             licenseInfo = info
             isLicensed = true
 
@@ -264,7 +275,11 @@ final class LicenseManager: ObservableObject {
         } catch {
             // Failure: increment counter
             info.consecutiveFailures += 1
-            try? saveLicense(info)
+            do {
+                try saveLicense(info)
+            } catch {
+                logger.error("Failed to save license after revalidation failure: \(error.localizedDescription)")
+            }
             licenseInfo = info
 
             if info.isBlocked {
@@ -442,10 +457,64 @@ final class LicenseManager: ObservableObject {
 
     // MARK: - Encrypted File Storage
 
-    /// Derive a symmetric encryption key from the hardware UUID
-    private static func encryptionKey() -> SymmetricKey? {
+    /// Legacy encryption key derived solely from hardware UUID (for migration)
+    private static func legacyEncryptionKey() -> SymmetricKey? {
         guard let uuid = getHardwareUUID() else { return nil }
         let hash = SHA256.hash(data: Data(uuid.utf8))
+        return SymmetricKey(data: hash)
+    }
+
+    /// Read or create a random 32-byte secret in macOS Keychain
+    private static func keychainSecret() -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrAccount as String: Constants.Keychain.account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecSuccess, let data = result as? Data {
+            return data
+        }
+
+        // Generate and store a new random secret
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let randomStatus = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
+        guard randomStatus == errSecSuccess else {
+            logger.error("Failed to generate random bytes: OSStatus \(randomStatus)")
+            return nil
+        }
+
+        let secretData = Data(randomBytes)
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrAccount as String: Constants.Keychain.account,
+            kSecValueData as String: secretData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+        ]
+
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        guard addStatus == errSecSuccess else {
+            logger.error("Failed to store Keychain secret: OSStatus \(addStatus)")
+            return nil
+        }
+
+        logger.info("Generated new Keychain encryption secret")
+        return secretData
+    }
+
+    /// Derive a symmetric encryption key from hardware UUID + Keychain secret
+    private static func encryptionKey() -> SymmetricKey? {
+        guard let uuid = getHardwareUUID() else { return nil }
+        guard let secret = keychainSecret() else { return nil }
+        var combined = Data(uuid.utf8)
+        combined.append(secret)
+        let hash = SHA256.hash(data: combined)
         return SymmetricKey(data: hash)
     }
 
@@ -455,6 +524,10 @@ final class LicenseManager: ObservableObject {
             throw LicenseError.hardwareIDUnavailable
         }
 
+        guard let fileURL = Self.licenseFileURL else {
+            throw LicenseError.storageError("Application Support directory unavailable")
+        }
+
         let data = try JSONEncoder().encode(info)
         let sealed = try AES.GCM.seal(data, using: key)
 
@@ -462,7 +535,7 @@ final class LicenseManager: ObservableObject {
             throw LicenseError.apiError("Encryption failed")
         }
 
-        try combined.write(to: Self.licenseFileURL)
+        try combined.write(to: fileURL)
         logger.debug("License info saved to Application Support")
     }
 
@@ -474,7 +547,8 @@ final class LicenseManager: ObservableObject {
             return
         }
 
-        guard let combined = try? Data(contentsOf: Self.licenseFileURL),
+        guard let fileURL = Self.licenseFileURL,
+              let combined = try? Data(contentsOf: fileURL),
               let box = try? AES.GCM.SealedBox(combined: combined),
               let data = try? AES.GCM.open(box, using: key),
               let info = try? JSONDecoder().decode(LicenseInfo.self, from: data) else {
@@ -495,7 +569,60 @@ final class LicenseManager: ObservableObject {
 
     /// Delete license file
     private func deleteLicense() {
-        try? FileManager.default.removeItem(at: Self.licenseFileURL)
+        guard let fileURL = Self.licenseFileURL else {
+            logger.warning("Cannot delete license: Application Support directory unavailable")
+            return
+        }
+        do {
+            try FileManager.default.removeItem(at: fileURL)
+        } catch {
+            logger.error("Failed to delete license file: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Encryption Key Migration
+
+    /// Migrate license data from legacy encryption key (UUID-only) to new key (UUID + Keychain secret)
+    private func migrateEncryptionKeyIfNeeded() {
+        guard let fileURL = Self.licenseFileURL,
+              FileManager.default.fileExists(atPath: fileURL.path) else {
+            return // No license file to migrate
+        }
+
+        // If we can already decrypt with the new key, no migration needed
+        if let newKey = Self.encryptionKey(),
+           let combined = try? Data(contentsOf: fileURL),
+           let box = try? AES.GCM.SealedBox(combined: combined),
+           (try? AES.GCM.open(box, using: newKey)) != nil {
+            return
+        }
+
+        // Try to decrypt with legacy key and re-encrypt with new key
+        guard let legacyKey = Self.legacyEncryptionKey(),
+              let combined = try? Data(contentsOf: fileURL),
+              let box = try? AES.GCM.SealedBox(combined: combined),
+              let plaintext = try? AES.GCM.open(box, using: legacyKey),
+              let info = try? JSONDecoder().decode(LicenseInfo.self, from: plaintext) else {
+            logger.debug("No legacy-encrypted license to migrate")
+            return
+        }
+
+        guard let newKey = Self.encryptionKey() else {
+            logger.warning("Cannot derive new encryption key for migration")
+            return
+        }
+
+        do {
+            let newSealed = try AES.GCM.seal(plaintext, using: newKey)
+            guard let newCombined = newSealed.combined else {
+                logger.error("Encryption key migration: seal failed")
+                return
+            }
+            try newCombined.write(to: fileURL)
+            logger.info("Migrated license encryption to hardened key for \(info.email, privacy: .private)")
+        } catch {
+            logger.error("Encryption key migration failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Keychain Migration
@@ -503,7 +630,11 @@ final class LicenseManager: ObservableObject {
     /// One-time migration from Keychain to Application Support (for existing users)
     private func migrateFromKeychainIfNeeded() {
         // Skip if we already have a license file
-        if FileManager.default.fileExists(atPath: Self.licenseFileURL.path) { return }
+        guard let fileURL = Self.licenseFileURL else {
+            logger.warning("Cannot check migration: Application Support directory unavailable")
+            return
+        }
+        if FileManager.default.fileExists(atPath: fileURL.path) { return }
 
         // Try to read from old Keychain location
         let query: [String: Any] = [
@@ -532,7 +663,10 @@ final class LicenseManager: ObservableObject {
                 kSecAttrService as String: "com.mouseon.app.license",
                 kSecAttrAccount as String: "activation"
             ]
-            SecItemDelete(deleteQuery as CFDictionary)
+            let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+            if deleteStatus != errSecSuccess && deleteStatus != errSecItemNotFound {
+                logger.warning("Failed to delete old Keychain entry: OSStatus \(deleteStatus)")
+            }
             logger.info("Migrated license from Keychain to Application Support")
         } catch {
             logger.warning("Failed to migrate from Keychain: \(error.localizedDescription)")

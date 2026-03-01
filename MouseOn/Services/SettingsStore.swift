@@ -128,8 +128,14 @@ final class SettingsStore: ObservableObject {
             ? Constants.Defaults.largeCursorSize
             : storedSize.clamped(to: Constants.Defaults.largeCursorSizeRange)
 
-        // Sanitize aliases to current maxNameLength (handles stale data from before validation)
-        aliases = aliases.mapValues { String($0.prefix(maxNameLength)) }
+        // Sanitize aliases: strip control characters and trim to maxNameLength
+        aliases = aliases.mapValues { value in
+            let cleaned = value.unicodeScalars
+                .filter { !CharacterSet.controlCharacters.contains($0) }
+                .map(String.init)
+                .joined()
+            return String(cleaned.prefix(maxNameLength))
+        }
 
         // Sanitize emojis to single character
         displayEmojis = displayEmojis.mapValues {

@@ -86,9 +86,9 @@ struct MoveCursorToDisplayIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         let moved = await MainActor.run {
-            // Find the screen with matching name
+            // Find the screen with matching name (case-insensitive exact match)
             for screen in NSScreen.screens {
-                if screen.localizedName.lowercased().contains(displayName.lowercased()) {
+                if screen.localizedName.caseInsensitiveCompare(displayName) == .orderedSame {
                     // Move cursor to center of that screen
                     let centerX = screen.frame.midX
                     let centerY = screen.frame.midY

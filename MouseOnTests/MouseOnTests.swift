@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  MouseOnTests.swift
 //  MouseOnTests
@@ -1112,3 +1113,162 @@ struct StatsCorruptionRecoveryTests {
         #expect(!FileManager.default.fileExists(atPath: statsURL.path))
     }
 }
+
+// MARK: - Security: URL Validation Tests
+
+// swiftlint:disable force_unwrapping
+@Suite("URL Validation (Fix #1)")
+@MainActor
+struct URLValidationTests {
+
+    @Test("Valid HTTPS mouse-on.com URL is accepted")
+    func validHTTPS() {
+        let url = URL(string: "https://mouse-on.com/download/MouseOn-1.0.dmg")!
+        #expect(UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("Valid HTTPS www.mouse-on.com URL is accepted")
+    func validWWW() {
+        let url = URL(string: "https://www.mouse-on.com/download")!
+        #expect(UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("HTTP URL is rejected")
+    func httpRejected() {
+        let url = URL(string: "http://mouse-on.com/download")!
+        #expect(!UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("Foreign host is rejected")
+    func foreignHostRejected() {
+        let url = URL(string: "https://evil.com/malware.dmg")!
+        #expect(!UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("Subdomain attack is rejected")
+    func subdomainAttack() {
+        let url = URL(string: "https://mouse-on.com.evil.com/download")!
+        #expect(!UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("FTP scheme is rejected")
+    func ftpRejected() {
+        let url = URL(string: "ftp://mouse-on.com/file")!
+        #expect(!UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("File scheme is rejected")
+    func fileSchemeRejected() {
+        let url = URL(string: "file:///etc/passwd")!
+        #expect(!UpdateChecker.isValidDownloadURL(url))
+    }
+
+    @Test("JavaScript scheme is rejected")
+    func javascriptRejected() {
+        if let url = URL(string: "javascript:alert(1)") {
+            #expect(!UpdateChecker.isValidDownloadURL(url))
+        }
+    }
+}
+// swiftlint:enable force_unwrapping
+
+// MARK: - Security: Version Parsing Tests
+
+@Suite("Version Parsing (Fix #8)")
+@MainActor
+struct VersionParsingTests {
+
+    let checker = UpdateChecker()
+
+    @Test("Simple newer version detected")
+    func simpleNewer() {
+        #expect(checker.isNewer("1.1", than: "1.0"))
+    }
+
+    @Test("Same version is not newer")
+    func sameVersion() {
+        #expect(!checker.isNewer("1.0", than: "1.0"))
+    }
+
+    @Test("Older version is not newer")
+    func olderVersion() {
+        #expect(!checker.isNewer("1.0", than: "1.1"))
+    }
+
+    @Test("Pre-release is not newer than same release")
+    func preReleaseNotNewer() {
+        #expect(!checker.isNewer("1.2-beta", than: "1.2"))
+    }
+
+    @Test("Pre-release of higher version is still newer")
+    func preReleaseHigherVersion() {
+        #expect(checker.isNewer("2.0-beta", than: "1.9"))
+    }
+
+    @Test("Multi-segment version comparison")
+    func multiSegment() {
+        #expect(checker.isNewer("1.2.3", than: "1.2.2"))
+        #expect(!checker.isNewer("1.2.2", than: "1.2.3"))
+    }
+
+    @Test("parseVersion extracts parts and suffix correctly")
+    func parseVersionBasic() {
+        let result = UpdateChecker.parseVersion("1.2.3-beta")
+        #expect(result.parts == [1, 2, 3])
+        #expect(result.hasSuffix == true)
+    }
+
+    @Test("parseVersion without suffix")
+    func parseVersionNoSuffix() {
+        let result = UpdateChecker.parseVersion("1.0.5")
+        #expect(result.parts == [1, 0, 5])
+        #expect(result.hasSuffix == false)
+    }
+
+    @Test("parseVersion handles single segment")
+    func parseVersionSingle() {
+        let result = UpdateChecker.parseVersion("3")
+        #expect(result.parts == [3])
+        #expect(result.hasSuffix == false)
+    }
+}
+
+// MARK: - Security: Alias Control Character Tests
+
+// swiftlint:disable force_unwrapping
+@Suite("Alias Control Character Filtering (Fix #9)")
+@MainActor
+struct AliasControlCharTests {
+
+    @Test("Control characters stripped from alias on load")
+    func controlCharsStrippedOnLoad() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.ctrlchar.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "Hello\t\nWorld\0"], forKey: Constants.UserDefaultsKeys.aliases)
+        testDefaults.set(15, forKey: Constants.UserDefaultsKeys.maxNameLength)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        let alias = settings.aliases["display1"]
+        #expect(alias == "HelloWorld")
+    }
+
+    @Test("Normal text passes through unchanged")
+    func normalTextUnchanged() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.ctrlchar.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "My Monitor"], forKey: Constants.UserDefaultsKeys.aliases)
+        testDefaults.set(15, forKey: Constants.UserDefaultsKeys.maxNameLength)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.aliases["display1"] == "My Monitor")
+    }
+
+    @Test("Unicode text with control characters is cleaned")
+    func unicodeWithControlChars() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.ctrlchar.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "显示器\u{0007}🖥️"], forKey: Constants.UserDefaultsKeys.aliases)
+        testDefaults.set(15, forKey: Constants.UserDefaultsKeys.maxNameLength)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.aliases["display1"] == "显示器🖥️")
+    }
+}
+// swiftlint:enable force_unwrapping

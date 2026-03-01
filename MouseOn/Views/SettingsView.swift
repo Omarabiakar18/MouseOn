@@ -460,7 +460,11 @@ struct DisplayRow: View {
         Binding(
             get: { settings.aliases[displayID] ?? "" },
             set: { newValue in
-                let trimmed = String(newValue.prefix(settings.maxNameLength))
+                let sanitized = newValue.unicodeScalars
+                    .filter { !CharacterSet.controlCharacters.contains($0) }
+                    .map(String.init)
+                    .joined()
+                let trimmed = String(sanitized.prefix(settings.maxNameLength))
                 if trimmed.isEmpty {
                     settings.aliases.removeValue(forKey: displayID)
                 } else {

@@ -142,9 +142,14 @@ struct LicenseView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Link("Need help? Contact support",
-                 destination: URL(string: "mailto:support@mouse-on.com")!)
-                .font(.caption)
+            if let mailURL = URL(string: "mailto:support@mouse-on.com") {
+                Link("Need help? Contact support", destination: mailURL)
+                    .font(.caption)
+            } else {
+                Text("Need help? Email support@mouse-on.com")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 

@@ -45,13 +45,17 @@ final class SparkleManager: ObservableObject {
     }
 }
 #else
+import os.log
+
+private let sparkleLogger = Logger(subsystem: "com.mouseon.app", category: "SparkleManager")
+
 /// Stub when Sparkle is not available (e.g., building without the package)
 final class SparkleManager: ObservableObject {
     static let shared = SparkleManager()
     @Published var automaticallyChecksForUpdates: Bool = false
     var canCheckForUpdates: Bool { false }
     func checkForUpdates() {
-        print("[SparkleManager] Sparkle not available — skipping update check")
+        sparkleLogger.info("Sparkle not available — skipping update check")
     }
 }
 #endif

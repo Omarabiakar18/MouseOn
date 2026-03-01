@@ -213,7 +213,11 @@ final class StatsManager: ObservableObject {
                 totalSwitches: internalSwitches
             )
             let encodedData = try JSONEncoder().encode(persistedStats)
-            try encodedData.write(to: statsURL, options: .atomic)
+            try encodedData.write(to: statsURL, options: [.atomic, .completeFileProtection])
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: statsURL.path
+            )
             logger.debug("Stats saved to disk (switches: \(self.internalSwitches))")
         } catch {
             logger.error("Failed to save stats: \(error.localizedDescription)")

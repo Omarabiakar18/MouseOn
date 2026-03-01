@@ -140,6 +140,15 @@ enum Constants {
         static let highlightLineWidth: CGFloat = 3.0
     }
 
+    // MARK: - Keychain
+
+    enum Keychain {
+        /// Service name for the encryption secret stored in macOS Keychain
+        static let service = "com.mouseon.app.encryption"
+        /// Account name for the encryption secret
+        static let account = "license-key-secret"
+    }
+
     // MARK: - File Paths
 
     enum FilePaths {

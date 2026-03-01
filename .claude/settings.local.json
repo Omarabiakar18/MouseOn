@@ -8,7 +8,9 @@
       "Bash(/Users/omarabiakar/Developer/MouseOn/scripts/build-dmg.sh:*)",
       "Bash(open:*)",
       "Bash(ls:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:developer.paddle.com)",
+      "Bash(swiftlint lint:*)"
     ]
   }
 }
