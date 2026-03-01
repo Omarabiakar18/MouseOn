@@ -2,8 +2,8 @@
 //  LicenseView.swift
 //  MouseOn
 //
-//  First-launch activation screen. Prompts user for their purchase email
-//  and activates the license via Paddle API.
+//  First-launch activation screen. Prompts user for their activation code
+//  and activates the license.
 //
 
 import SwiftUI
@@ -16,11 +16,11 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "LicenseView
 // MARK: - License View
 
 /// Shown on first launch (or when license is invalid/blocked).
-/// User enters their purchase email → validates → activates → dismisses.
+/// User enters their activation code → validates → activates → dismisses.
 struct LicenseView: View {
 
     @ObservedObject private var licenseManager = LicenseManager.shared
-    @State private var email: String = ""
+    @State private var activationCode: String = ""
     @State private var errorMessage: String?
     @State private var isActivating: Bool = false
     @State private var showSuccess: Bool = false
@@ -33,7 +33,7 @@ struct LicenseView: View {
             // App icon and title
             headerSection
 
-            // Email input
+            // Activation code input
             inputSection
 
             // Error message
@@ -68,7 +68,7 @@ struct LicenseView: View {
             Text("Activate MouseOn")
                 .font(.title.bold())
 
-            Text("Enter your purchase email to activate this device.")
+            Text("Enter the activation code from your purchase to activate this device.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -77,16 +77,21 @@ struct LicenseView: View {
 
     private var inputSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Purchase Email")
+            Text("Activation Code")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            TextField("you@example.com", text: $email)
+            TextField("MOUSE-XXXXXX", text: $activationCode)
                 .textFieldStyle(.roundedBorder)
                 .disabled(isActivating || showSuccess)
+                .font(.system(.body, design: .monospaced))
+                .textCase(.uppercase)
                 .onSubmit { activateLicense() }
-                .accessibilityLabel("Purchase email address")
-                .accessibilityIdentifier("licenseEmailField")
+                .onChange(of: activationCode) { _, newValue in
+                    activationCode = newValue.uppercased()
+                }
+                .accessibilityLabel("Activation code")
+                .accessibilityIdentifier("licenseTokenField")
         }
     }
 
@@ -132,7 +137,7 @@ struct LicenseView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .disabled(email.isEmpty || isActivating)
+        .disabled(activationCode.isEmpty || isActivating)
         .accessibilityIdentifier("activateButton")
     }
 
@@ -142,13 +147,14 @@ struct LicenseView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
+            if let recoverURL = URL(string: "https://mouse-on.com/recover") {
+                Link("Lost your code? Recover it here", destination: recoverURL)
+                    .font(.caption)
+            }
+
             if let mailURL = URL(string: "mailto:support@mouse-on.com") {
                 Link("Need help? Contact support", destination: mailURL)
                     .font(.caption)
-            } else {
-                Text("Need help? Email support@mouse-on.com")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
     }
@@ -166,7 +172,7 @@ struct LicenseView: View {
 
         Task {
             do {
-                try await licenseManager.activate(email: email)
+                try await licenseManager.activate(token: activationCode)
                 showSuccess = true
 
                 // Auto-dismiss after a short delay

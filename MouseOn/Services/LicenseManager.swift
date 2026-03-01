@@ -220,6 +220,70 @@ final class LicenseManager: ObservableObject {
         logger.info("License activated successfully")
     }
 
+    /// Activate using an activation token (e.g. MOUSE-XXXXXX) instead of email
+    func activate(token: String) async throws {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        guard !trimmed.isEmpty else {
+            throw LicenseError.apiError("Please enter your activation code")
+        }
+
+        guard let hardwareUUID = Self.getHardwareUUID() else {
+            throw LicenseError.hardwareIDUnavailable
+        }
+
+        isValidating = true
+        defer { isValidating = false }
+
+        logger.info("Activating license with token")
+
+        // Activate directly with token — server validates and activates in one step
+        let (data, httpResponse) = try await apiRequest(
+            endpoint: LicenseAPI.activate,
+            body: ["token": trimmed, "hardware_uuid": hardwareUUID]
+        )
+
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 404 {
+                throw LicenseError.noPurchaseFound
+            }
+            if httpResponse.statusCode == 409 {
+                throw LicenseError.tooManyDevices
+            }
+            // Try to extract error message from response
+            if let apiResponse = try? APIResponse(from: data), let error = apiResponse.error {
+                throw LicenseError.apiError(error)
+            }
+            throw LicenseError.networkError("HTTP \(httpResponse.statusCode)")
+        }
+
+        let apiResponse = try APIResponse(from: data)
+
+        if !apiResponse.success {
+            throw LicenseError.apiError(apiResponse.error ?? "Activation failed")
+        }
+
+        // Store license info — use token as identifier since we don't have email locally
+        let info = LicenseInfo(
+            email: trimmed, // Store token as the identifier
+            hardwareUUID: hardwareUUID,
+            activationDate: Date(),
+            lastValidationDate: Date(),
+            consecutiveFailures: 0
+        )
+        try saveLicense(info)
+
+        // Update state
+        licenseInfo = info
+        deviceUsage = DeviceUsageInfo(
+            activatedDevices: apiResponse.activatedDevices,
+            maxDevices: apiResponse.maxDevices
+        )
+        isLicensed = true
+
+        logger.info("License activated successfully via token")
+    }
+
     /// Deactivate this device. Frees the activation slot immediately.
     func deactivate() async throws {
         guard let info = licenseInfo else { return }
