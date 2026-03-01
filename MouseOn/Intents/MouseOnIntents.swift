@@ -185,5 +185,12 @@ struct MouseOnShortcuts: AppShortcutsProvider {
             shortTitle: "List Displays",
             systemImageName: "display.2"
         )
+
+        AppShortcut(
+            intent: MoveCursorToDisplayIntent(),
+            phrases: ["Move cursor to display in \(.applicationName)"],
+            shortTitle: "Move Cursor to Display",
+            systemImageName: "cursorarrow.rays"
+        )
     }
 }

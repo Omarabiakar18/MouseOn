@@ -460,10 +460,11 @@ struct DisplayRow: View {
         Binding(
             get: { settings.aliases[displayID] ?? "" },
             set: { newValue in
-                if newValue.isEmpty {
+                let trimmed = String(newValue.prefix(settings.maxNameLength))
+                if trimmed.isEmpty {
                     settings.aliases.removeValue(forKey: displayID)
                 } else {
-                    settings.aliases[displayID] = newValue
+                    settings.aliases[displayID] = trimmed
                 }
             }
         )
@@ -474,7 +475,7 @@ struct DisplayRow: View {
             get: { settings.displayEmojis[displayID] ?? "" },
             set: { newValue in
                 // Only keep first character (emoji) or clear
-                let emoji = String(newValue.prefix(2))  // Emoji can be 2 chars (with modifiers)
+                let emoji = newValue.first.map(String.init) ?? ""
                 if emoji.isEmpty {
                     settings.displayEmojis.removeValue(forKey: displayID)
                 } else {

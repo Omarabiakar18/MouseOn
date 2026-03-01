@@ -180,6 +180,11 @@ final class StatsManager: ObservableObject {
             }
         } catch {
             logger.error("Failed to load stats: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: statsURL)
+            internalData = [:]
+            internalSwitches = 0
+            data = [:]
+            totalSwitches = 0
         }
     }
 

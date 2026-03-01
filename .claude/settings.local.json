@@ -6,7 +6,9 @@
       "Bash(python3:*)",
       "Bash(chmod:*)",
       "Bash(/Users/omarabiakar/Developer/MouseOn/scripts/build-dmg.sh:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(ls:*)",
+      "WebSearch"
     ]
   }
 }

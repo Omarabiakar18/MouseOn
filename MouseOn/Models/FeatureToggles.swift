@@ -11,9 +11,6 @@ import Foundation
 
 /// Represents toggleable features in the app
 struct FeatureToggles: Codable {
-    /// Whether to show the data box (currently unused)
-    var showDataBox: Bool = true
-
     /// Whether auto-hide is enabled for the menu bar item
     var autoHideEnabled: Bool = false
 

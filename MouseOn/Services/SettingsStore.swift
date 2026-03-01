@@ -128,6 +128,14 @@ final class SettingsStore: ObservableObject {
             ? Constants.Defaults.largeCursorSize
             : storedSize.clamped(to: Constants.Defaults.largeCursorSizeRange)
 
+        // Sanitize aliases to current maxNameLength (handles stale data from before validation)
+        aliases = aliases.mapValues { String($0.prefix(maxNameLength)) }
+
+        // Sanitize emojis to single character
+        displayEmojis = displayEmojis.mapValues {
+            $0.first.map(String.init) ?? ""
+        }.filter { !$0.value.isEmpty }
+
         logger.info("Settings loaded successfully")
     }
 

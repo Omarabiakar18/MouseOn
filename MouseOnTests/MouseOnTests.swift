@@ -44,7 +44,6 @@ struct SettingsStoreTests {
 
     @Test("Default feature toggles are correct")
     func defaultFeatureToggles() {
-        #expect(settings.features.showDataBox == true)
         #expect(settings.features.autoHideEnabled == false)
         #expect(settings.features.statsEnabled == true)
     }
@@ -494,7 +493,6 @@ struct FeatureTogglesTests {
     @Test("Default values are correct")
     func defaultValues() {
         let toggles = FeatureToggles()
-        #expect(toggles.showDataBox == true)
         #expect(toggles.autoHideEnabled == false)
         #expect(toggles.statsEnabled == true)
     }
@@ -504,7 +502,6 @@ struct FeatureTogglesTests {
         let original = FeatureToggles()
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(FeatureToggles.self, from: data)
-        #expect(decoded.showDataBox == original.showDataBox)
         #expect(decoded.autoHideEnabled == original.autoHideEnabled)
         #expect(decoded.statsEnabled == original.statsEnabled)
     }
@@ -512,13 +509,11 @@ struct FeatureTogglesTests {
     @Test("Codable round trip preserves modified values")
     func codableWithModifiedValues() throws {
         var original = FeatureToggles()
-        original.showDataBox = false
         original.autoHideEnabled = true
         original.statsEnabled = false
 
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(FeatureToggles.self, from: data)
-        #expect(decoded.showDataBox == false)
         #expect(decoded.autoHideEnabled == true)
         #expect(decoded.statsEnabled == false)
     }
@@ -808,12 +803,12 @@ struct SettingsEdgeCaseTests {
         settings = SettingsStore(defaults: testDefaults)
     }
 
-    @Test("Max name length stays within valid range")
-    func maxNameLengthRange() {
-        settings.maxNameLength = 1
-        #expect(settings.maxNameLength >= Constants.Defaults.nameLengthRange.lowerBound)
-        settings.maxNameLength = 999
-        #expect(settings.maxNameLength <= Constants.Defaults.nameLengthRange.upperBound || settings.maxNameLength == 999)
+    @Test("Max name length clamped on load")
+    func maxNameLengthClampedOnLoad() {
+        // Out-of-range value saved to defaults is clamped during load()
+        testDefaults.set(1, forKey: Constants.UserDefaultsKeys.maxNameLength)
+        let loaded = SettingsStore(defaults: testDefaults)
+        #expect(loaded.maxNameLength == Constants.Defaults.maxNameLength)
     }
 
     @Test("Very long alias is stored correctly")
@@ -1003,5 +998,117 @@ struct StatsManagerEdgeCaseTests {
         try await Task.sleep(for: .milliseconds(150))
         #expect(stats.totalSwitches == 0)
         #expect(stats.data.isEmpty)
+    }
+}
+
+// MARK: - Alias Sanitization Tests
+
+@Suite("Alias Sanitization")
+@MainActor
+struct AliasSanitizationTests {
+
+    @Test("Alias longer than maxNameLength is trimmed on load")
+    func aliasTrimmedOnLoad() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.alias-sanitize.\(UUID().uuidString)")!
+        // Set maxNameLength to 5
+        testDefaults.set(5, forKey: Constants.UserDefaultsKeys.maxNameLength)
+        // Save an alias longer than maxNameLength
+        testDefaults.set(["display1": "VeryLongName"], forKey: Constants.UserDefaultsKeys.aliases)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.aliases["display1"] == "VeryL")
+    }
+
+    @Test("Alias exactly at maxNameLength is unchanged")
+    func aliasExactLength() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.alias-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(5, forKey: Constants.UserDefaultsKeys.maxNameLength)
+        testDefaults.set(["display1": "Hello"], forKey: Constants.UserDefaultsKeys.aliases)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.aliases["display1"] == "Hello")
+    }
+
+    @Test("Alias shorter than maxNameLength is unchanged")
+    func aliasShortLength() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.alias-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(10, forKey: Constants.UserDefaultsKeys.maxNameLength)
+        testDefaults.set(["display1": "Hi"], forKey: Constants.UserDefaultsKeys.aliases)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.aliases["display1"] == "Hi")
+    }
+}
+
+// MARK: - Emoji Sanitization Tests
+
+@Suite("Emoji Sanitization")
+@MainActor
+struct EmojiSanitizationTests {
+
+    @Test("Multi-emoji string is trimmed to first emoji on load")
+    func multiEmojiTrimmed() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.emoji-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "😀😎"], forKey: Constants.UserDefaultsKeys.displayEmojis)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.displayEmojis["display1"] == "😀")
+    }
+
+    @Test("Skin-tone emoji stays intact as single character")
+    func skinToneEmojiIntact() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.emoji-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "👍🏿"], forKey: Constants.UserDefaultsKeys.displayEmojis)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.displayEmojis["display1"] == "👍🏿")
+    }
+
+    @Test("Empty emoji string is filtered out on load")
+    func emptyEmojiRemoved() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.emoji-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(["display1": ""], forKey: Constants.UserDefaultsKeys.displayEmojis)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.displayEmojis["display1"] == nil)
+    }
+
+    @Test("Single emoji stays unchanged")
+    func singleEmojiUnchanged() {
+        let testDefaults = UserDefaults(suiteName: "com.mouseon.tests.emoji-sanitize.\(UUID().uuidString)")!
+        testDefaults.set(["display1": "🖥️"], forKey: Constants.UserDefaultsKeys.displayEmojis)
+
+        let settings = SettingsStore(defaults: testDefaults)
+        #expect(settings.displayEmojis["display1"] == "🖥️")
+    }
+}
+
+// MARK: - Stats Corruption Recovery Tests
+
+@Suite("Stats Corruption Recovery")
+@MainActor
+struct StatsCorruptionRecoveryTests {
+
+    @Test("Corrupted stats file is deleted and state is reset")
+    func corruptedStatsRecovery() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let appFolder = appSupport.appendingPathComponent(Constants.FilePaths.appSupportFolder, isDirectory: true)
+        let statsURL = appFolder.appendingPathComponent(Constants.FilePaths.statsFileName)
+
+        // Ensure directory exists
+        try? FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
+
+        // Write invalid data to stats file
+        let invalidData = Data([0xFF, 0xFE, 0x00, 0x01])
+        try? invalidData.write(to: statsURL)
+        #expect(FileManager.default.fileExists(atPath: statsURL.path))
+
+        // Create StatsManager which calls load() in init
+        let stats = StatsManager()
+        #expect(stats.data.isEmpty)
+        #expect(stats.totalSwitches == 0)
+
+        // Corrupted file should have been deleted
+        #expect(!FileManager.default.fileExists(atPath: statsURL.path))
     }
 }
