@@ -25,10 +25,11 @@ private let logger = Logger(subsystem: "com.mouseon.app", category: "LicenseMana
 
 // TODO: Replace with actual production URL when deployed
 private enum LicenseAPI {
-    static let baseURL = "https://mouse-on.com/api/license"  // TODO: Update when backend is deployed
+    static let baseURL = "https://mouse-on.com/api/license"
     static let validate = "\(baseURL)/validate"
     static let activate = "\(baseURL)/activate"
     static let deactivate = "\(baseURL)/deactivate"
+    static let apiKey = "d62af976e1ab7ab0c7d10eb9b7b30c6541d9123a2718cee40e58daec105bf595"
 }
 
 // MARK: - License Error
@@ -415,6 +416,7 @@ final class LicenseManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(LicenseAPI.apiKey, forHTTPHeaderField: "X-Api-Key")
         request.timeoutInterval = 15
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
