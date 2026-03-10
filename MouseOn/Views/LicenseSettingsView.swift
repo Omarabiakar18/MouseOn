@@ -33,11 +33,12 @@ struct LicenseSettingsView: View {
         Form {
             Section("License") {
                 if let info = licenseManager.licenseInfo {
-                    // Licensed email
-                    LabeledContent("Email") {
+                    // License identifier (email or activation code)
+                    LabeledContent(info.isTokenBased ? "Activation Code" : "Email") {
                         Text(info.email)
                             .foregroundColor(.secondary)
                             .textSelection(.enabled)
+                            .font(info.isTokenBased ? .system(.body, design: .monospaced) : .body)
                     }
 
                     // Device usage
