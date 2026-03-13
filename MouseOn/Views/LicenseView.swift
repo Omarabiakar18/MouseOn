@@ -87,7 +87,7 @@ struct LicenseView: View {
                 .font(.system(.body, design: .monospaced))
                 .textCase(.uppercase)
                 .onSubmit { activateLicense() }
-                .onChange(of: activationCode) { _, newValue in
+                .onChange(of: activationCode) { newValue in
                     activationCode = newValue.uppercased()
                 }
                 .accessibilityLabel("Activation code")
