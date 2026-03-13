@@ -65,13 +65,18 @@ enum LicenseError: LocalizedError {
 
 // MARK: - License Info
 
-/// Cached license information stored in Keychain
+/// Cached license information stored encrypted in Application Support
 struct LicenseInfo: Codable {
-    let email: String
+    let email: String          // Email address OR activation token (MOUSE-XXXXXX)
     let hardwareUUID: String
     let activationDate: Date
     var lastValidationDate: Date
     var consecutiveFailures: Int
+
+    /// Whether this license was activated via token (not email)
+    var isTokenBased: Bool {
+        email.hasPrefix("MOUSE-")
+    }
 
     /// Maximum consecutive failed revalidations before blocking
     static let maxConsecutiveFailures = 3
@@ -430,15 +435,23 @@ final class LicenseManager: ObservableObject {
         return (data, httpResponse)
     }
 
-    /// Verify that a purchase exists for this email
+    /// Verify that a purchase exists for this email or token
     private func verifyPurchase(email: String) async throws {
         guard let hardwareUUID = Self.getHardwareUUID() else {
             throw LicenseError.hardwareIDUnavailable
         }
 
+        // Build request body — use "token" key if it's a token, "email" if it's an email
+        var body: [String: Any] = ["hardware_uuid": hardwareUUID]
+        if email.hasPrefix("MOUSE-") {
+            body["token"] = email
+        } else {
+            body["email"] = email
+        }
+
         let (data, httpResponse) = try await apiRequest(
             endpoint: LicenseAPI.validate,
-            body: ["email": email, "hardware_uuid": hardwareUUID]
+            body: body
         )
 
         guard httpResponse.statusCode == 200 else {
@@ -489,9 +502,17 @@ final class LicenseManager: ObservableObject {
 
     /// Deactivate a device (unregister hardware UUID)
     private func deactivateDevice(email: String, hardwareUUID: String) async throws {
+        // Build request body — use "token" key if it's a token, "email" if it's an email
+        var body: [String: Any] = ["hardware_uuid": hardwareUUID]
+        if email.hasPrefix("MOUSE-") {
+            body["token"] = email
+        } else {
+            body["email"] = email
+        }
+
         let (_, httpResponse) = try await apiRequest(
             endpoint: LicenseAPI.deactivate,
-            body: ["email": email, "hardware_uuid": hardwareUUID]
+            body: body
         )
 
         guard httpResponse.statusCode == 200 else {
@@ -505,9 +526,17 @@ final class LicenseManager: ObservableObject {
             throw LicenseError.hardwareIDUnavailable
         }
 
+        // Build request body — use "token" key if it's a token, "email" if it's an email
+        var body: [String: Any] = ["hardware_uuid": hardwareUUID]
+        if email.hasPrefix("MOUSE-") {
+            body["token"] = email
+        } else {
+            body["email"] = email
+        }
+
         let (data, httpResponse) = try await apiRequest(
             endpoint: LicenseAPI.validate,
-            body: ["email": email, "hardware_uuid": hardwareUUID]
+            body: body
         )
 
         guard httpResponse.statusCode == 200 else {
@@ -530,8 +559,72 @@ final class LicenseManager: ObservableObject {
         return SymmetricKey(data: hash)
     }
 
-    /// Read or create a random 32-byte secret in macOS Keychain
-    private static func keychainSecret() -> Data? {
+    /// Read or create a random 32-byte secret stored as a file in Application Support.
+    /// This avoids macOS Keychain prompts which trigger "always allow / deny" dialogs
+    /// on unsigned apps — making the UX terrible for users.
+    private static func encryptionSecret() -> Data? {
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            logger.error("Application Support directory unavailable")
+            return nil
+        }
+
+        let dir = appSupport.appendingPathComponent("MouseOn", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let secretFile = dir.appendingPathComponent(".encryption-secret")
+
+        // Try to read existing secret
+        if let data = try? Data(contentsOf: secretFile), data.count == 32 {
+            return data
+        }
+
+        // Migrate from Keychain if a secret exists there (one-time)
+        let keychainData = readKeychainSecret()
+        if let existing = keychainData {
+            do {
+                try existing.write(to: secretFile)
+                // Set restrictive permissions (owner read/write only)
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: 0o600],
+                    ofItemAtPath: secretFile.path
+                )
+                deleteKeychainSecret() // Clean up old Keychain entry
+                logger.info("Migrated encryption secret from Keychain to file")
+                return existing
+            } catch {
+                logger.warning("Failed to migrate Keychain secret to file: \(error.localizedDescription)")
+                return existing // Still use it from Keychain this time
+            }
+        }
+
+        // Generate a new random secret
+        var randomBytes = [UInt8](repeating: 0, count: 32)
+        let status = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
+        guard status == errSecSuccess else {
+            logger.error("Failed to generate random bytes: OSStatus \(status)")
+            return nil
+        }
+
+        let secretData = Data(randomBytes)
+        do {
+            try secretData.write(to: secretFile)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: secretFile.path
+            )
+            logger.info("Generated new file-based encryption secret")
+        } catch {
+            logger.error("Failed to write encryption secret: \(error.localizedDescription)")
+            return nil
+        }
+
+        return secretData
+    }
+
+    /// Read encryption secret from Keychain (for migration only)
+    private static func readKeychainSecret() -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Constants.Keychain.service,
@@ -539,45 +632,28 @@ final class LicenseManager: ObservableObject {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-
         if status == errSecSuccess, let data = result as? Data {
             return data
         }
-
-        // Generate and store a new random secret
-        var randomBytes = [UInt8](repeating: 0, count: 32)
-        let randomStatus = SecRandomCopyBytes(kSecRandomDefault, 32, &randomBytes)
-        guard randomStatus == errSecSuccess else {
-            logger.error("Failed to generate random bytes: OSStatus \(randomStatus)")
-            return nil
-        }
-
-        let secretData = Data(randomBytes)
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.Keychain.service,
-            kSecAttrAccount as String: Constants.Keychain.account,
-            kSecValueData as String: secretData,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-        guard addStatus == errSecSuccess else {
-            logger.error("Failed to store Keychain secret: OSStatus \(addStatus)")
-            return nil
-        }
-
-        logger.info("Generated new Keychain encryption secret")
-        return secretData
+        return nil
     }
 
-    /// Derive a symmetric encryption key from hardware UUID + Keychain secret
+    /// Delete encryption secret from Keychain (after migration)
+    private static func deleteKeychainSecret() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrAccount as String: Constants.Keychain.account
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
+    /// Derive a symmetric encryption key from hardware UUID + file-based secret
     private static func encryptionKey() -> SymmetricKey? {
         guard let uuid = getHardwareUUID() else { return nil }
-        guard let secret = keychainSecret() else { return nil }
+        guard let secret = encryptionSecret() else { return nil }
         var combined = Data(uuid.utf8)
         combined.append(secret)
         let hash = SHA256.hash(data: combined)
