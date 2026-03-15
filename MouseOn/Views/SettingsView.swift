@@ -44,7 +44,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("moreTab")
         }
         .padding()
-        .frame(minWidth: 400, minHeight: 340)
+        .frame(minWidth: 520, minHeight: 340)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

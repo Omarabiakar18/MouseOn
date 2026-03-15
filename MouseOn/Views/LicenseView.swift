@@ -72,6 +72,8 @@ struct LicenseView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -142,13 +144,13 @@ struct LicenseView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            if let mailURL = URL(string: "mailto:support@mouse-on.com") {
-                Link("Need help? Contact support", destination: mailURL)
-                    .font(.caption)
-            } else {
-                Text("Need help? Email support@mouse-on.com")
+            HStack(spacing: 4) {
+                Text("Get your activation code at")
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                Link("mouse-on.com/recover", destination: URL(string: "https://mouse-on.com/recover")!)
+                    .font(.caption)
             }
         }
     }
