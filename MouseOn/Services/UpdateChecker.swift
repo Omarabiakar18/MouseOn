@@ -2,14 +2,19 @@
 //  UpdateChecker.swift
 //  MouseOn
 //
-//  Simple update checker that hits the server for version info.
-//  Replaces Sparkle until we have an Apple Developer certificate.
+//  Background auto-update checker that periodically checks for new versions,
+//  downloads the DMG silently, and notifies via macOS notifications.
 //
 
-import SwiftUI
+import Foundation
+import AppKit
 import os.log
 
+// MARK: - Logger
+
 private let logger = Logger(subsystem: "com.mouseon.app", category: "UpdateChecker")
+
+// MARK: - Version Info
 
 struct VersionInfo: Codable {
     let version: String
@@ -17,28 +22,96 @@ struct VersionInfo: Codable {
     let releaseNotes: String?
 }
 
+// MARK: - Update Checker
+
 @MainActor
-final class UpdateChecker: ObservableObject {
+final class UpdateChecker: NSObject, ObservableObject {
     static let shared = UpdateChecker()
+
+    // MARK: - Published State
 
     @Published var updateAvailable: Bool = false
     @Published var latestVersion: String?
     @Published var downloadURL: String?
     @Published var releaseNotes: String?
     @Published var isChecking: Bool = false
+    @Published var isDownloading: Bool = false
+    @Published var downloadedDMGURL: URL?
 
-    private let versionURL = "https://mouse-on.com/api/license/version"
+    // MARK: - Private
+
+    private var checkTimer: Timer?
+    private var downloadTask: URLSessionDownloadTask?
+    private lazy var downloadSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.isDiscretionary = true
+        config.allowsExpensiveNetworkAccess = false
+        return URLSession(configuration: config, delegate: downloadDelegate, delegateQueue: .main)
+    }()
+    private let downloadDelegate = DownloadDelegate()
 
     /// Current app version from bundle
     var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"
     }
 
+    // MARK: - Initialization
+
+    override init() {
+        super.init()
+        downloadDelegate.checker = self
+    }
+
+    // MARK: - Background Checking
+
+    /// Start the background update check loop. Called once from AppDependencies.
+    func startBackgroundChecking() {
+        logger.info("Starting background update checking (interval: 6h)")
+
+        // Check immediately if enough time has passed since last check
+        if shouldCheckNow() {
+            Task {
+                await performBackgroundCheck()
+            }
+        }
+
+        // Schedule recurring timer
+        checkTimer = Timer.scheduledTimer(
+            withTimeInterval: Constants.Update.checkInterval,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.performBackgroundCheck()
+            }
+        }
+    }
+
+    /// Stop background checking (cleanup)
+    func stopBackgroundChecking() {
+        checkTimer?.invalidate()
+        checkTimer = nil
+    }
+
+    // MARK: - Check Logic
+
+    private func performBackgroundCheck() async {
+        await checkForUpdates()
+
+        if updateAvailable, let urlString = downloadURL, let url = URL(string: urlString) {
+            guard Self.isValidDownloadURL(url) else {
+                logger.warning("Blocked download from untrusted URL: \(urlString)")
+                return
+            }
+            await downloadUpdate(from: url)
+        }
+    }
+
     func checkForUpdates() async {
+        guard !isChecking else { return }
         isChecking = true
         defer { isChecking = false }
 
-        guard let url = URL(string: versionURL) else {
+        guard let url = URL(string: Constants.Update.versionCheckURL) else {
             logger.error("Invalid version check URL")
             return
         }
@@ -65,8 +138,84 @@ final class UpdateChecker: ObservableObject {
             } else {
                 logger.info("App is up to date (\(self.currentVersion))")
             }
+
+            // Record check timestamp
+            UserDefaults.standard.set(Date(), forKey: Constants.UserDefaultsKeys.lastUpdateCheck)
+
         } catch {
             logger.error("Failed to check for updates: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Download
+
+    private func downloadUpdate(from url: URL) async {
+        // Skip if we already have this version downloaded
+        if let existing = downloadedDMGURL,
+           FileManager.default.fileExists(atPath: existing.path) {
+            logger.info("DMG already downloaded, skipping re-download")
+            return
+        }
+
+        guard !isDownloading else { return }
+        isDownloading = true
+
+        logger.info("Starting silent DMG download from \(url.absoluteString)")
+
+        // Clean up old downloads
+        cleanupOldDownloads()
+
+        let request = URLRequest(url: url, timeoutInterval: 300)
+        downloadTask = downloadSession.downloadTask(with: request)
+        downloadTask?.resume()
+    }
+
+    /// Called by the download delegate when download completes
+    fileprivate func handleDownloadComplete(location: URL) {
+        isDownloading = false
+
+        guard let updatesDir = updatesDirectory() else {
+            logger.error("Cannot access updates directory")
+            return
+        }
+
+        let version = latestVersion ?? "unknown"
+        let destURL = updatesDir.appendingPathComponent("MouseOn-\(version).dmg")
+
+        do {
+            // Remove existing file at destination if any
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.moveItem(at: location, to: destURL)
+            downloadedDMGURL = destURL
+            logger.info("DMG downloaded to \(destURL.path)")
+
+            // Notify via macOS notification
+            Task {
+                await UpdateNotificationManager.shared.sendUpdateNotification(version: version)
+            }
+        } catch {
+            logger.error("Failed to save downloaded DMG: \(error.localizedDescription)")
+        }
+    }
+
+    /// Called by the download delegate on failure
+    fileprivate func handleDownloadError(_ error: Error) {
+        isDownloading = false
+        logger.error("DMG download failed: \(error.localizedDescription)")
+    }
+
+    // MARK: - Install
+
+    /// Open the downloaded DMG for user to install
+    func openDownloadedDMG() {
+        if let dmgURL = downloadedDMGURL, FileManager.default.fileExists(atPath: dmgURL.path) {
+            NSWorkspace.shared.open(dmgURL)
+            logger.info("Opened DMG for installation: \(dmgURL.path)")
+        } else {
+            // Fallback to download page
+            openDownloadPage()
         }
     }
 
@@ -78,6 +227,55 @@ final class UpdateChecker: ObservableObject {
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - File Management
+
+    private func updatesDirectory() -> URL? {
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else { return nil }
+
+        let dir = appSupport
+            .appendingPathComponent(Constants.FilePaths.appSupportFolder)
+            .appendingPathComponent(Constants.FilePaths.updatesFolderName)
+
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        } catch {
+            logger.error("Failed to create updates directory: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func cleanupOldDownloads() {
+        guard let dir = updatesDirectory() else { return }
+
+        do {
+            let files = try FileManager.default.contentsOfDirectory(
+                at: dir,
+                includingPropertiesForKeys: nil
+            )
+            for file in files where file.pathExtension == "dmg" {
+                try FileManager.default.removeItem(at: file)
+                logger.debug("Cleaned up old DMG: \(file.lastPathComponent)")
+            }
+        } catch {
+            logger.warning("Failed to cleanup old downloads: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func shouldCheckNow() -> Bool {
+        guard let lastCheck = UserDefaults.standard.object(
+            forKey: Constants.UserDefaultsKeys.lastUpdateCheck
+        ) as? Date else {
+            return true // Never checked
+        }
+        return Date().timeIntervalSince(lastCheck) >= Constants.Update.checkInterval
     }
 
     /// Validates that a download URL is trusted (HTTPS + allowed host)
@@ -111,11 +309,11 @@ final class UpdateChecker: ObservableObject {
         let localParsed = Self.parseVersion(local)
 
         let maxLen = max(remoteParsed.parts.count, localParsed.parts.count)
-        for i in 0..<maxLen {
-            let r = i < remoteParsed.parts.count ? remoteParsed.parts[i] : 0
-            let l = i < localParsed.parts.count ? localParsed.parts[i] : 0
-            if r > l { return true }
-            if r < l { return false }
+        for idx in 0..<maxLen {
+            let remoteVal = idx < remoteParsed.parts.count ? remoteParsed.parts[idx] : 0
+            let localVal = idx < localParsed.parts.count ? localParsed.parts[idx] : 0
+            if remoteVal > localVal { return true }
+            if remoteVal < localVal { return false }
         }
 
         // Same numeric version: pre-release is NOT newer than release
@@ -124,5 +322,46 @@ final class UpdateChecker: ObservableObject {
         }
 
         return false
+    }
+}
+
+// MARK: - Download Delegate
+
+/// Non-isolated delegate that forwards results back to UpdateChecker on main actor
+private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
+    weak var checker: UpdateChecker?
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        // Copy to a temporary location before the system deletes it
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".dmg")
+        do {
+            try FileManager.default.copyItem(at: location, to: tempURL)
+        } catch {
+            Task { @MainActor [weak self] in
+                self?.checker?.handleDownloadError(error)
+            }
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            self?.checker?.handleDownloadComplete(location: tempURL)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        if let error = error {
+            Task { @MainActor [weak self] in
+                self?.checker?.handleDownloadError(error)
+            }
+        }
     }
 }
