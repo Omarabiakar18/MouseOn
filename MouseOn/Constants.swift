@@ -115,6 +115,8 @@ enum Constants {
         static let displayEmojis = "displayEmojis"
         static let largeCursorDuration = "largeCursorDuration"
         static let largeCursorSize = "largeCursorSize"
+        static let lastUpdateCheck = "lastUpdateCheck"
+        static let hasRequestedNotificationPermission = "hasRequestedNotificationPermission"
     }
 
     // MARK: - Special Keys
@@ -157,5 +159,27 @@ enum Constants {
 
         /// Stats file name
         static let statsFileName = "stats.json"
+
+        /// Updates subfolder name
+        static let updatesFolderName = "Updates"
+    }
+
+    // MARK: - Update
+
+    enum Update {
+        /// Version check URL
+        static let versionCheckURL = "https://mouse-on.com/api/license/version"
+
+        /// Background check interval (6 hours)
+        static let checkInterval: TimeInterval = 21_600
+
+        /// Notification category identifier
+        static let notificationCategoryID = "UPDATE_AVAILABLE"
+
+        /// Install action identifier
+        static let installActionID = "INSTALL_UPDATE"
+
+        /// Dismiss action identifier
+        static let dismissActionID = "DISMISS_UPDATE"
     }
 }
