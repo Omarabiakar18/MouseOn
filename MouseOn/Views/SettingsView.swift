@@ -57,27 +57,22 @@ struct AppearanceTab: View {
 
     var body: some View {
         Form {
-            // Display name length
-            Section {
+            Section("Display Name") {
                 displayedCharactersSection
             }
 
-            // Opacity control
-            Section {
+            Section("Opacity") {
                 opacitySection
             }
 
-            // Color
             Section("Color") {
                 colorModeSection
             }
 
-            // Find My Cursor
             Section("Find My Cursor") {
                 findMyCursorSection
             }
 
-            // Large Cursor Mode
             Section("Large Cursor Mode") {
                 largeCursorSection
             }
@@ -106,8 +101,7 @@ struct AppearanceTab: View {
     }
 
     private var opacitySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Menu bar opacity")
+        LabeledContent("Menu bar opacity") {
             HStack {
                 Slider(
                     value: $settings.opacity,
@@ -181,9 +175,7 @@ struct AppearanceTab: View {
         .accessibilityIdentifier("largeCursorEnabledToggle")
 
         if settings.features.largeCursorEnabled {
-            // Duration slider
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Display duration")
+            LabeledContent("Display duration") {
                 HStack {
                     Slider(
                         value: $settings.largeCursorDuration,
@@ -197,9 +189,7 @@ struct AppearanceTab: View {
                 }
             }
 
-            // Size slider
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Cursor size")
+            LabeledContent("Cursor size") {
                 HStack {
                     Slider(
                         value: $settings.largeCursorSize,
@@ -347,7 +337,10 @@ struct DisplaysTab: View {
                 .accessibilityIdentifier("emojiModeToggle")
 
                 if settings.features.emojiModeEnabled {
-                    Text("Set an emoji for each display below. The emoji will replace the display name in the menu bar.")
+                    Text(
+                        "Set an emoji for each display below. " +
+                        "The emoji will replace the display name in the menu bar."
+                    )
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -412,34 +405,77 @@ struct MoreTab: View {
 
     var body: some View {
         Form {
-            // Windows section
             Section("Windows") {
                 Button {
                     openWindow(id: "stats")
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Label("View Statistics", systemImage: "chart.bar")
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("View Statistics")
+                                Text("Time spent on each display")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "chart.bar")
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
 
                 Button {
                     openWindow(id: "displays-debug")
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Label("Connected Displays Info", systemImage: "display.2")
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Connected Displays")
+                                Text("Technical display information")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "display.2")
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
             }
 
-            // About section
             Section("About") {
                 Button {
                     openWindow(id: "about")
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Label("About MouseOn", systemImage: "info.circle")
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("About MouseOn")
+                                Text("Version and credits")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "info.circle")
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.plain)
             }
         }
         .formStyle(.grouped)
