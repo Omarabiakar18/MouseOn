@@ -45,6 +45,9 @@ struct MouseOnApp: App {
     /// License manager for activation gating
     @ObservedObject private var licenseManager = LicenseManager.shared
 
+    /// Update notification manager for badge indicator
+    @ObservedObject private var updateNotifications = UpdateNotificationManager.shared
+
     // MARK: - Environment
 
     @Environment(\.openWindow) private var openWindow
@@ -82,9 +85,13 @@ struct MouseOnApp: App {
         return raw.count > limit ? String(raw.prefix(limit)) + "…" : raw
     }
 
-    /// Alias for backward compatibility
+    /// Alias for backward compatibility, with optional update badge
     private var truncatedName: String {
-        return menuBarText
+        let text = menuBarText
+        if updateNotifications.hasUnseenUpdate {
+            return text + " \u{00B7}" // Middle dot as subtle badge
+        }
+        return text
     }
 
     /// Current display key for lookups
@@ -241,23 +248,6 @@ struct MouseOnApp: App {
             }
             .keyboardShortcut(",", modifiers: .command)
             .accessibilityIdentifier("settingsButton")
-
-            Button("Check for Updates...") {
-                Task {
-                    await UpdateChecker.shared.checkForUpdates()
-                    if UpdateChecker.shared.updateAvailable {
-                        UpdateChecker.shared.openDownloadPage()
-                    } else {
-                        // Show an alert that app is up to date
-                        let alert = NSAlert()
-                        alert.messageText = "You're up to date!"
-                        alert.informativeText = "MouseOn \(UpdateChecker.shared.currentVersion) is the latest version."
-                        alert.alertStyle = .informational
-                        alert.addButton(withTitle: "OK")
-                        alert.runModal()
-                    }
-                }
-            }
 
             Divider()
 

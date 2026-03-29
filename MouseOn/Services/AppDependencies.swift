@@ -99,6 +99,10 @@ final class AppDependencies: ObservableObject, AppDependenciesProtocol {
         // Register for app termination to flush stats
         setupTerminationHandler()
 
+        // Setup update notifications and start background update checking
+        UpdateNotificationManager.shared.setup()
+        UpdateChecker.shared.startBackgroundChecking()
+
         logger.info("App dependencies initialized successfully")
     }
 
