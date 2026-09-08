@@ -1,0 +1,60 @@
+name: Bug report
+description: Something isn't working the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. The more specific you can be, the faster this gets fixed.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Move the cursor to my external monitor
+        2. Open Settings
+        3. The menu bar still shows the built-in display
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: MouseOn version
+      description: Menu bar icon → About, or the DMG you installed from.
+      placeholder: "1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "14.5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: displays
+    attributes:
+      label: Your display setup
+      description: >
+        How many displays, and what kind? Built-in, external, Sidecar (iPad as a display),
+        Universal Control, mirrored? For anything display-detection related, please paste the
+        contents of Settings → Connected Displays.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, a screen recording, or console logs if you have them.

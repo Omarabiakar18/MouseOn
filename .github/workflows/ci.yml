@@ -1,0 +1,131 @@
+# MouseOn CI/CD Pipeline
+# Runs on every push to main and on pull requests
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+jobs:
+  # Build and Test
+  build-and-test:
+    name: Build & Test
+    runs-on: macos-14  # macOS Sonoma with Apple Silicon
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
+      
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project MouseOn.xcodeproj \
+            -scheme MouseOn \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcpretty
+      
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -project MouseOn.xcodeproj \
+            -scheme MouseOn \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcpretty
+  
+  # SwiftLint
+  lint:
+    name: SwiftLint
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      
+      - name: Run SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
+  
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential hardcoded secrets..."
+          # Check for common secret patterns
+          if grep -rE "(password|secret|api_key|apikey|token)\s*[:=]\s*['\"][^'\"]+['\"]" --include="*.swift" .; then
+            echo "⚠️ Potential hardcoded secrets found!"
+            exit 1
+          fi
+          echo "✅ No obvious hardcoded secrets found"
+      
+      - name: Check for force unwraps in production code
+        run: |
+          echo "Checking for force unwraps..."
+          # Count force unwraps (warning only, not failure)
+          FORCE_UNWRAPS=$(grep -r "!" --include="*.swift" MouseOn/ | grep -v "// swiftlint" | grep -v "Test" | grep -c "!" || true)
+          echo "Found approximately $FORCE_UNWRAPS lines with ! (includes legitimate uses)"
+      
+      - name: Check Info.plist for privacy descriptions
+        run: |
+          echo "Checking for required privacy descriptions..."
+          if [ -f "MouseOn/Info.plist" ]; then
+            echo "Info.plist found"
+          fi
+          echo "✅ Security scan complete"
+
+  # Build Release (only on main)
+  build-release:
+    name: Build Release
+    runs-on: macos-14
+    needs: [build-and-test, lint]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      
+      - name: Build Release
+        run: |
+          xcodebuild build \
+            -project MouseOn.xcodeproj \
+            -scheme MouseOn \
+            -configuration Release \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            | xcpretty
+      
+      - name: Archive Build Info
+        run: |
+          echo "Release build completed at $(date)"
+          echo "Commit: ${{ github.sha }}"

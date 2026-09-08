@@ -1,0 +1,4 @@
+# Test-target overrides: force unwrapping is intentional in tests
+# (fail fast on broken fixtures rather than guarding every optional).
+disabled_rules:
+  - force_unwrapping

@@ -1,0 +1,38 @@
+# SwiftLint Configuration for MouseOn
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+
+line_length:
+  warning: 120
+  error: 200
+
+identifier_name:
+  min_length:
+    warning: 1
+    error: 1
+
+type_name:
+  min_length:
+    warning: 2
+    error: 1
+
+type_body_length:
+  warning: 450
+  error: 600
+
+function_body_length:
+  warning: 65
+  error: 100
+
+file_length:
+  warning: 750
+  error: 1200
+
+excluded:
+  - Pods
+  - .build
+  - DerivedData

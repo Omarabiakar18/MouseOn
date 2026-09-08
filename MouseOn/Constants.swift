@@ -1,0 +1,193 @@
+//
+//  Constants.swift
+//  MouseOn
+//
+//  Application-wide constants to avoid magic numbers and strings.
+//
+
+import Foundation
+import CoreGraphics
+
+// MARK: - Constants
+
+enum Constants {
+
+    // MARK: - Timing
+
+    enum Timing {
+        /// Fast polling interval for Universal Control detection (100ms)
+        static let fastPollingInterval: TimeInterval = 0.1
+
+        /// Slow polling interval for Universal Control detection (1s)
+        static let slowPollingInterval: TimeInterval = 1.0
+
+        /// Display list refresh interval (2s)
+        static let displayRefreshInterval: TimeInterval = 2.0
+
+        /// Minimum time between processed mouse-move events (~20 Hz).
+        /// Raw events arrive at up to 120 Hz; throttling avoids spawning a
+        /// Task and doing a display lookup for every single event.
+        static let mouseMoveThrottleInterval: TimeInterval = 0.05
+
+        /// Mouse location update interval for debug view (500ms)
+        static let mouseLocationUpdateInterval: TimeInterval = 0.5
+
+        /// Cursor highlight animation frame interval (~60fps)
+        static let highlightAnimationInterval: TimeInterval = 0.016
+
+        /// Cursor highlight auto-dismiss duration (2s)
+        static let highlightDismissDelay: TimeInterval = 2.0
+    }
+
+    // MARK: - Display Detection
+
+    enum Display {
+        /// Threshold in pixels for edge detection
+        static let edgeThreshold: CGFloat = 5
+
+        /// Apple vendor IDs for Sidecar detection
+        static let appleVendorIDs: Set<UInt32> = [0x610, 1552]
+
+        /// Model ID threshold for virtual displays
+        static let virtualModelThreshold: UInt32 = 0xA000
+
+        /// Number of stuck checks before Universal Control triggers (fast mode)
+        static let fastModeStuckThreshold: Int = 3
+
+        /// Number of stuck checks before Universal Control triggers (slow mode)
+        static let slowModeStuckThreshold: Int = 2
+
+        /// Maximum displays to query from CoreGraphics.
+        /// Displays beyond this count are silently ignored — far above any
+        /// realistic macOS setup, but a known limit of the fixed buffer
+        /// passed to CGGetOnlineDisplayList/CGGetActiveDisplayList.
+        static let maxDisplayCount: Int = 16
+    }
+
+    // MARK: - Settings Defaults
+
+    enum Defaults {
+        /// Default menu bar item opacity
+        static let opacity: Double = 0.75
+
+        /// Opacity range bounds
+        static let opacityRange: ClosedRange<Double> = 0.30...1.0
+
+        /// Default auto-hide timeout in seconds
+        static let autoHideSeconds: Int = 30
+
+        /// Auto-hide range bounds
+        static let autoHideRange: ClosedRange<Int> = 5...300
+
+        /// Default max display name length
+        static let maxNameLength: Int = 15
+
+        /// Name length range bounds
+        static let nameLengthRange: ClosedRange<Int> = 5...30
+
+        /// Default accent color (system blue)
+        static let accentColor: String = "#007AFF"
+
+        /// Default cursor highlight color (system orange)
+        static let highlightColor: String = "#FF9500"
+
+        /// Default name for Universal Control device
+        static let universalControlName: String = "iPad"
+
+        /// Default large cursor duration in seconds
+        static let largeCursorDuration: Double = 5.0
+
+        /// Large cursor duration range
+        static let largeCursorDurationRange: ClosedRange<Double> = 2.0...15.0
+
+        /// Default large cursor size multiplier
+        static let largeCursorSize: Double = 3.0
+
+        /// Large cursor size range
+        static let largeCursorSizeRange: ClosedRange<Double> = 2.0...5.0
+    }
+
+    // MARK: - UserDefaults Keys
+
+    enum UserDefaultsKeys {
+        static let features = "features"
+        static let opacity = "opacity"
+        static let autoHideSeconds = "autoHideSeconds"
+        static let aliases = "aliases"
+        static let maxNameLength = "maxNameLength"
+        static let displayColors = "displayColors"
+        static let useSingleAccentColor = "useSingleAccentColor"
+        static let singleAccentColor = "singleAccentColor"
+        static let highlightColor = "highlightColor"
+        static let findCursorHotkeyEnabled = "findCursorHotkeyEnabled"
+        static let displayEmojis = "displayEmojis"
+        static let largeCursorDuration = "largeCursorDuration"
+        static let largeCursorSize = "largeCursorSize"
+        static let lastUpdateCheck = "lastUpdateCheck"
+        static let hasRequestedNotificationPermission = "hasRequestedNotificationPermission"
+    }
+
+    // MARK: - Special Keys
+
+    enum SpecialKeys {
+        /// Key for Universal Control display in aliases/colors
+        static let universalControl = "universal-control"
+    }
+
+    // MARK: - UI Constants
+
+    enum UserInterface {
+        /// Cursor highlight window size
+        static let highlightWindowSize: CGFloat = 200
+
+        /// Number of animated circles in highlight
+        static let highlightCircleCount: Int = 3
+
+        /// Highlight center dot radius
+        static let highlightCenterDotRadius: CGFloat = 8
+
+        /// Highlight circle line width
+        static let highlightLineWidth: CGFloat = 3.0
+    }
+
+    // MARK: - File Paths
+
+    enum FilePaths {
+        /// App Support folder name
+        static let appSupportFolder = "MouseOn"
+
+        /// Stats file name
+        static let statsFileName = "stats.json"
+
+        /// Updates subfolder name
+        static let updatesFolderName = "Updates"
+    }
+
+    // MARK: - Update
+
+    enum Update {
+        /// Version check URL — GitHub Releases API for the latest release.
+        /// Requires the repo to be public (unauthenticated API can't see private releases).
+        static let versionCheckURL = "https://api.github.com/repos/Omarabiakar18/MouseOn/releases/latest"
+
+        /// Background check interval (6 hours)
+        static let checkInterval: TimeInterval = 21_600
+
+        /// Notification category identifier
+        static let notificationCategoryID = "UPDATE_AVAILABLE"
+
+        /// Install action identifier
+        static let installActionID = "INSTALL_UPDATE"
+
+        /// Dismiss action identifier
+        static let dismissActionID = "DISMISS_UPDATE"
+
+        /// Release asset holding `shasum -a 256` output for the release's files.
+        /// The DMG is not signed or notarized, so this manifest is what a
+        /// downloaded update is verified against before it is opened.
+        static let checksumsAssetName = "SHA256SUMS.txt"
+
+        /// Read size when streaming a downloaded DMG through SHA-256 (1 MB)
+        static let hashChunkSize = 1_048_576
+    }
+}

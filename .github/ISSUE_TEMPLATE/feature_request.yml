@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest something MouseOn should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Have a look at [FEATURES.md](https://github.com/Omarabiakar18/MouseOn/blob/main/FEATURES.md)
+        first — it might already be on the roadmap.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: What are you trying to do that MouseOn makes hard or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead?
+      description: Other apps, workarounds, Shortcuts automations.

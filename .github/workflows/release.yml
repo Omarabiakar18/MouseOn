@@ -1,0 +1,190 @@
+# MouseOn Release Pipeline
+# Builds and packages the app as a DMG for distribution
+# Triggers on version tags (v*) or manual dispatch
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+  APP_NAME: MouseOn
+  SCHEME: MouseOn
+  PROJECT: MouseOn.xcodeproj
+
+jobs:
+  build-and-package:
+    name: Build & Package DMG
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      
+      - name: Show build info
+        run: |
+          echo "Xcode version:"
+          xcodebuild -version
+          echo ""
+          echo "Available schemes:"
+          xcodebuild -project $PROJECT -list
+      
+      - name: Build Release
+        run: |
+          xcodebuild archive \
+            -project $PROJECT \
+            -scheme $SCHEME \
+            -configuration Release \
+            -destination 'platform=macOS,arch=arm64' \
+            -archivePath build/$APP_NAME.xcarchive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
+      
+      - name: Export App
+        run: |
+          # Create export options plist
+          cat > ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>mac-application</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+          </dict>
+          </plist>
+          EOF
+          
+          # Export the app from archive
+          mkdir -p build/Export
+          cp -R "build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app" "build/Export/"
+      
+      - name: Create DMG
+        run: |
+          # Install create-dmg if not available
+          brew install create-dmg || true
+          
+          # Create DMG
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_NAME="${APP_NAME}-${VERSION}"
+          
+          mkdir -p dist
+          
+          # Create a Finder alias (not symlink) to /Applications so the folder icon renders
+          osascript -e 'tell application "Finder"
+            set a to make alias file to POSIX file "/Applications" at POSIX file "'"$(pwd)/build/Export"'"
+            set name of a to "Applications"
+          end tell' || ln -sfn /Applications "build/Export/Applications"
+
+          # Create a styled DMG with background, proper layout, and Applications symlink
+          create-dmg \
+            --volname "$APP_NAME" \
+            --background "dmg-resources/background@2x.png" \
+            --window-pos 200 120 \
+            --window-size 660 400 \
+            --icon-size 128 \
+            --icon "$APP_NAME.app" 150 190 \
+            --hide-extension "$APP_NAME.app" \
+            --icon "Applications" 510 190 \
+            "dist/${DMG_NAME}.dmg" \
+            "build/Export/" \
+            || true
+          
+          # Fallback: simple DMG if create-dmg fails
+          if [ ! -f "dist/${DMG_NAME}.dmg" ]; then
+            echo "create-dmg failed, using hdiutil fallback..."
+            hdiutil create -volname "$APP_NAME" \
+              -srcfolder "build/Export/" \
+              -ov -format UDZO \
+              "dist/${DMG_NAME}.dmg"
+          fi
+          
+          # Also create a ZIP for those who prefer it
+          cd build/Export
+          zip -r "../../dist/${DMG_NAME}.zip" "$APP_NAME.app"
+          cd ../..
+
+          # Publish checksums. The build is not signed or notarized, so this
+          # manifest is what the in-app updater verifies a downloaded DMG
+          # against before opening it (UpdateChecker.verifyAndPublish).
+          cd dist
+          shasum -a 256 *.dmg *.zip > SHA256SUMS.txt
+          cd ..
+
+          echo "Created packages:"
+          ls -la dist/
+          echo "Checksums:"
+          cat dist/SHA256SUMS.txt
+      
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MouseOn-${{ steps.version.outputs.version }}-dmg
+          path: dist/*.dmg
+          retention-days: 30
+      
+      - name: Upload ZIP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MouseOn-${{ steps.version.outputs.version }}-zip
+          path: dist/*.zip
+          retention-days: 30
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          body: |
+            ## MouseOn ${{ steps.version.outputs.version }}
+            
+            ### Installation
+            1. Download `MouseOn-${{ steps.version.outputs.version }}.dmg`
+            2. Open the DMG and drag MouseOn to Applications
+            3. Launch MouseOn from Applications
+            
+            **Note:** Since this app is not notarized, you may need to right-click → Open on first launch.
+
+            ### Verifying your download
+            `SHA256SUMS.txt` lists the SHA-256 of every file in this release. Check yours with:
+            ```
+            shasum -a 256 -c SHA256SUMS.txt
+            ```
+            MouseOn's built-in updater performs this check automatically and refuses
+            to open a DMG that doesn't match.
+
+            ### What's New
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
