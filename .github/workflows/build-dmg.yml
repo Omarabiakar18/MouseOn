@@ -62,18 +62,26 @@ jobs:
           echo "DMG created successfully"
           ls -la MouseOn.dmg
 
+      # Deploy target lives in the DEPLOY_TARGET secret (user@host:/path/to/MouseOn.dmg)
+      # rather than in the workflow, so this public repo doesn't advertise the server.
       - name: Upload DMG to server
         env:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          DEPLOY_TARGET: ${{ secrets.DEPLOY_TARGET }}
         run: |
+          if [ -z "$DEPLOY_TARGET" ]; then
+            echo "DEPLOY_TARGET secret not set - skipping server deploy"
+            exit 0
+          fi
+
           mkdir -p ~/.ssh
           echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
+
           scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
             MouseOn.dmg \
-            root@89.167.43.143:/opt/mouseon-license/MouseOn.dmg
-          
+            "$DEPLOY_TARGET"
+
           echo "DMG deployed to server!"
 
       - name: Upload DMG as artifact

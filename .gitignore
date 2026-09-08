@@ -113,3 +113,6 @@ LAUNCH_AUDIT.md
 
 # Local Claude Code config
 .claude/settings.local.json
+
+# Claude Code project instructions (kept locally)
+CLAUDE.md
