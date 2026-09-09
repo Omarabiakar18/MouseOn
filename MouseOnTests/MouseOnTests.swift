@@ -1062,7 +1062,7 @@ struct StatsCorruptionRecoveryTests {
 
 // MARK: - Security: URL Validation Tests
 
-@Suite("URL Validation (Fix #1)")
+@Suite("Download URL Validation")
 @MainActor
 struct URLValidationTests {
 
@@ -1208,7 +1208,7 @@ struct UpdateCheckResultTests {
 
 // MARK: - Security: Version Parsing Tests
 
-@Suite("Version Parsing (Fix #8)")
+@Suite("Version Comparison")
 @MainActor
 struct VersionParsingTests {
 
@@ -1298,7 +1298,7 @@ struct VersionParsingTests {
 
 // MARK: - Security: Alias Control Character Tests
 
-@Suite("Alias Control Character Filtering (Fix #9)")
+@Suite("Alias Control Character Filtering")
 @MainActor
 struct AliasControlCharTests {
 
