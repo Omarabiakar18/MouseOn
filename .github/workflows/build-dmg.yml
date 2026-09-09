@@ -1,4 +1,4 @@
-name: Build & Deploy DMG
+name: Build DMG
 
 on:
   push:
@@ -64,28 +64,6 @@ jobs:
           echo "DMG created successfully"
           ls -la MouseOn.dmg
 
-      # Deploy target lives in the DEPLOY_TARGET secret (user@host:/path/to/MouseOn.dmg)
-      # rather than in the workflow, so this public repo doesn't advertise the server.
-      - name: Upload DMG to server
-        env:
-          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          DEPLOY_TARGET: ${{ secrets.DEPLOY_TARGET }}
-        run: |
-          if [ -z "$DEPLOY_TARGET" ]; then
-            echo "DEPLOY_TARGET secret not set - skipping server deploy"
-            exit 0
-          fi
-
-          mkdir -p ~/.ssh
-          echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
-            MouseOn.dmg \
-            "$DEPLOY_TARGET"
-
-          echo "DMG deployed to server!"
-
       - name: Upload DMG as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -104,13 +82,12 @@ jobs:
           COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           
-          MESSAGE="🚀 <b>DMG Build & Deploy Successful</b>
+          MESSAGE="🚀 <b>DMG Build Successful</b>
           
           <b>Commit:</b> <code>${COMMIT_SHA}</code> ${COMMIT_MSG}
           <b>Author:</b> ${AUTHOR}
           <b>Tests:</b> ✅ Passed
           <b>Build:</b> ✅ Release
-          <b>DMG:</b> ✅ Deployed to server
           
           <a href=\"${COMMIT_URL}\">View Commit →</a>"
           
