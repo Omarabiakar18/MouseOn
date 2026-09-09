@@ -5,7 +5,9 @@ All notable changes to MouseOn are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-09-09
+
+First public release.
 
 ### Added
 
@@ -28,4 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automatic update checks** against GitHub Releases, with downloads verified against the
   release's published SHA-256 before they are opened
 
-[Unreleased]: https://github.com/Omarabiakar18/MouseOn/commits/main
+[1.0.0]: https://github.com/Omarabiakar18/MouseOn/releases/tag/v1.0.0
