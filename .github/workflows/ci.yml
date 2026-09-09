@@ -16,7 +16,7 @@ jobs:
   # Build and Test
   build-and-test:
     name: Build & Test
-    runs-on: macos-14  # macOS Sonoma with Apple Silicon
+    runs-on: macos-26  # Xcode 26 — required for the Liquid Glass SDK symbols
     
     steps:
       - name: Checkout
@@ -30,6 +30,7 @@ jobs:
       
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild build \
             -project MouseOn.xcodeproj \
             -scheme MouseOn \
@@ -41,6 +42,7 @@ jobs:
       
       - name: Run Tests
         run: |
+          set -o pipefail
           xcodebuild test \
             -project MouseOn.xcodeproj \
             -scheme MouseOn \
@@ -53,7 +55,7 @@ jobs:
   # SwiftLint
   lint:
     name: SwiftLint
-    runs-on: macos-14
+    runs-on: macos-26
     
     steps:
       - name: Checkout
@@ -68,7 +70,7 @@ jobs:
   # Security Scan
   security:
     name: Security Scan
-    runs-on: macos-14
+    runs-on: macos-26
     
     steps:
       - name: Checkout
@@ -102,7 +104,7 @@ jobs:
   # Build Release (only on main)
   build-release:
     name: Build Release
-    runs-on: macos-14
+    runs-on: macos-26
     needs: [build-and-test, lint]
     if: github.ref == 'refs/heads/main'
     
@@ -115,6 +117,7 @@ jobs:
       
       - name: Build Release
         run: |
+          set -o pipefail
           xcodebuild build \
             -project MouseOn.xcodeproj \
             -scheme MouseOn \
