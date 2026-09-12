@@ -232,6 +232,14 @@ struct MouseOnApp: App {
                 }
                 .accessibilityIdentifier("settingsButton")
 
+                // TODO: replace with the real Whish Pay donation link (WHISH_DONATION_URL_TODO)
+                menuButton("Support MouseOn", icon: "heart", tint: .secondary) {
+                    if let donateURL = URL(string: "https://whish.money/WHISH_DONATION_URL_TODO") {
+                        NSWorkspace.shared.open(donateURL)
+                    }
+                }
+                .accessibilityIdentifier("supportButton")
+
                 menuButton("Quit MouseOn", icon: "power", tint: .secondary) {
                     logger.info("User initiated quit")
                     dependencies.stats.flush()
