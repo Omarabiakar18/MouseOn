@@ -71,6 +71,11 @@ Every release ships a `SHA256SUMS.txt`. To check your download:
 shasum -a 256 -c SHA256SUMS.txt
 ```
 
+### Support
+
+MouseOn is free and open source. If it's useful to you, you can support development via
+[Whish Pay](https://whish.money/WHISH_DONATION_URL_TODO) <!-- TODO: replace WHISH_DONATION_URL_TODO with the real donation link -->.
+
 ### Build from source
 
 ```bash

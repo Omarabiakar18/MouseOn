@@ -110,6 +110,16 @@ struct AboutView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
             }
+
+            // TODO: replace with the real Whish Pay donation link (WHISH_DONATION_URL_TODO)
+            if let donateURL = URL(string: "https://whish.money/WHISH_DONATION_URL_TODO") {
+                Link(destination: donateURL) {
+                    Label("Support MouseOn", systemImage: "heart")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+            }
         }
     }
 
